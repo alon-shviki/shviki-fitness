@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Find Exercises</h2>
+
+    <!-- Search -->
+    <form method="POST" class="form-inline mb-3">
+        <input type="text" name="muscle" placeholder="Search by muscle (e.g. biceps)" class="form-control mr-2">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+
+    <!-- Dropdown -->
+    <form method="POST" class="form-inline mb-4">
+        <select name="body_part" class="form-control mr-2">
+            <option value="">-- Select Body Part --</option>
+            <option value="back">Back</option>
+            <option value="chest">Chest</option>
+            <option value="shoulders">Shoulders</option>
+            <option value="upper arms">Upper Arms</option>
+            <option value="lower arms">Lower Arms</option>
+            <option value="upper legs">Upper Legs</option>
+            <option value="lower legs">Lower Legs</option>
+            <option value="waist">Waist</option>
+            <option value="neck">Neck</option>
+            <option value="cardio">Cardio</option>
+        </select>
+        <button type="submit" class="btn btn-success">Choose</button>
+    </form>
+
+    {% if exercises %}
+    <h3>Showing results for "{{ selected }}"</h3>
+    <div class="row">
+        {% for ex in exercises %}
+        <div class="col-md-4 mb-3">
+            <div class="card p-2">
+                <h5>{{ ex.name }}</h5>
+                <img src="{{ ex.imageUrl }}" alt="{{ ex.name }}" class="img-fluid">
+
+                <form action="{{ url_for('save_exercise', exercise_id=ex.exerciseId) }}" method="POST">
+                    <input type="hidden" name="name" value="{{ ex.name }}">
+                    <input type="hidden" name="gifUrl" value="{{ ex.imageUrl }}">
+                    <button type="submit" class="btn btn-sm btn-success mt-2">
+                        Save to My Plan
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">No exercises found yet. Try searching or selecting a body part above.</p>
+    {% endif %}
+</div>
+{% endblock %}

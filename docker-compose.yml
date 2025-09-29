@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: mysql:8.0
@@ -21,17 +23,19 @@ services:
   app:
     build: .
     ports:
-      - "5000:5000"
+      - "5000:5000"   # expose Flask app
     volumes:
-      - .:/app
+      - .:/app        # live code reload (for dev)
     depends_on:
       db:
         condition: service_healthy
+    env_file: .env
     environment:
-      FLASK_APP: run.py
       FLASK_ENV: development
-      SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@db:3306/shviki_db
       SECRET_KEY: super-secret-key
+      EXERCISE_API_KEY: a7e283e943msh9ef1e13e34a30a1p106ce1jsn207b35aa2876
+      EXERCISE_API_HOST: exercisedb-api1.p.rapidapi.com
+      SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@db:3306/shviki_db
 
 volumes:
   dbdata:
