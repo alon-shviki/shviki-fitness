@@ -1,23 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    <h2>My Saved Exercises</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">My Saved Exercises</h2>
+        <div>
+            <a href="{{ url_for('user_home') }}" class="btn btn-secondary me-2">🏠 Back to Home</a>
+            <a href="{{ url_for('exercises') }}" class="btn btn-primary">💪 Go to Exercises</a>
+        </div>
+    </div>
+
     <div class="row">
         {% for ex in exercises %}
         <div class="col-md-4 mb-3">
-            <div class="card p-2">
-                <h5>{{ ex.exercise_name }}</h5>
-                <p><b>Target:</b> {{ ex.target }}</p>
-                <p><b>Equipment:</b> {{ ex.equipment }}</p>
-                <img src="{{ ex.gif_url }}" class="img-fluid">
-
-                <form action="{{ url_for('delete_exercise', exercise_id=ex.id) }}" method="POST">
-                    <button type="submit" class="btn btn-sm btn-danger mt-2">Delete</button>
-                </form>
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ ex.exercise_name }}</h5>
+                    <p class="card-text mb-1"><b>Target:</b> {{ ex.target }}</p>
+                    <p class="card-text mb-1"><b>Equipment:</b> {{ ex.equipment }}</p>
+                    <div class="text-center my-2">
+                        <img src="{{ ex.gif_url }}" alt="{{ ex.exercise_name }}" 
+                             class="img-fluid rounded" 
+                             style="max-height:180px;object-fit:contain;">
+                    </div>
+                    <form action="{{ url_for('delete_exercise', exercise_id=ex.id) }}" method="POST" class="mt-auto">
+                        <button type="submit" class="btn btn-sm btn-danger w-100">Delete</button>
+                    </form>
+                </div>
             </div>
         </div>
         {% else %}
-        <p>No exercises saved yet.</p>
+        <div class="col-12">
+            <div class="alert alert-info">No exercises saved yet.</div>
+        </div>
         {% endfor %}
     </div>
 </div>

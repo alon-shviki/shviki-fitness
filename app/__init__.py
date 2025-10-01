@@ -52,7 +52,7 @@ def create_app():
             db.session.commit()
             session['user_id'] = user.id
             session['role'] = user.role
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('user_home'))
         return render_template('register.html')
 
     # Login
@@ -67,17 +67,52 @@ def create_app():
                 if user.role == 'admin':
                     return redirect(url_for('dashboard'))
                 else:
-                    return redirect(url_for('exercises'))
+                    return redirect(url_for('user_home'))
             else:
                 flash("Invalid email or password", "danger")
 
         return render_template('login.html')
+
+    @app.route("/home" , methods=["GET"])
+    def user_home():
+        if "user_id" not in session:
+            flash("Please log in to save exercises", "danger")
+            return redirect(url_for("login"))
+        # Sample classes data
+        classes = [
+            {
+                "name": "HIIT 45",
+                "description": "High-intensity cardio intervals.",
+                "days": "Sun, Tue, Thu",
+                "time": "18:00",
+                "duration": "45m",
+                "level": "All",
+                "coach": "Dana",
+                "room": "A",
+            },
+            {
+                "name": "Barbell Basics",
+                "description": "Learn squat, bench, and deadlift safely.",
+                "days": "Mon, Wed",
+                "time": "19:30",
+                "duration": "60m",
+                "level": "Beginner",
+                "coach": "Yair",
+                "room": "B",
+            },
+        ]
+        return render_template("user_home.html", classes=classes)
+
+
 
     # Dashboard
     @app.route('/dashboard')
     def dashboard():
         if 'user_id' not in session:
             return redirect(url_for('login'))
+        if session['role'] != 'admin':
+            flash("Access denied", "danger")
+            return redirect(url_for('user_home'))
         users = User.query.all()
         return render_template('dashboard.html', users=users)
 
@@ -97,6 +132,10 @@ def create_app():
 
     @app.route("/exercises", methods=["GET", "POST"])
     def exercises():
+        if "user_id" not in session:
+            flash("Please log in to view exercises", "danger")
+            return redirect(url_for("login"))
+        
         exercise_list = []
         selected = None
 

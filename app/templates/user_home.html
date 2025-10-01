@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width:900px;margin-top:20px">
+
+  <h2 class="mb-3">Welcome, {{ current_user.first_name if current_user else "User" }}</h2>
+
+  <!-- Quick buttons -->
+  <div class="mb-3">
+    <a href="{{ url_for('exercises') }}" class="btn btn-primary me-2">Exercises</a>
+    <a href="/my_exercises" class="btn btn-secondary">Saved Exercises</a>
+  </div>
+
+  <!-- Classes table -->
+  <h4 class="mb-2">Available Gym Classes</h4>
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+          <th>Days</th>
+          <th>Time</th>
+          <th>Duration</th>
+          <th>Level</th>
+          <th>Coach</th>
+          <th>Room</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in classes %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td>{{ c.description }}</td>
+          <td>{{ c.days }}</td>
+          <td>{{ c.time }}</td>
+          <td>{{ c.duration }}</td>
+          <td>{{ c.level }}</td>
+          <td>{{ c.coach }}</td>
+          <td>{{ c.room }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted">No classes available yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
