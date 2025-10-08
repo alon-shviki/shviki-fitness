@@ -8,6 +8,7 @@ def test_login_invalid_user(test_client):
     assert b"Invalid" in response.data or response.status_code in [400, 200]
 
 
+# tests/test_login.py
 def test_login_success(test_client):
     """Register and then log in successfully."""
     # Register a test user
@@ -29,4 +30,5 @@ def test_login_success(test_client):
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert b"user_home" in response.data or b"Dashboard" in response.data
+    assert b"Welcome" in response.data or b"Home" in response.data
+

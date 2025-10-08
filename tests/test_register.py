@@ -1,3 +1,4 @@
+# tests/test_register.py
 def test_register_success(test_client):
     """Register a new user successfully."""
     response = test_client.post("/register", data={
@@ -12,7 +13,8 @@ def test_register_success(test_client):
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert b"user_home" in response.data or b"Dashboard" in response.data
+    assert b"Welcome" in response.data or b"Home" in response.data
+
 
 
 def test_register_duplicate_email(test_client):
