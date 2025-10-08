@@ -1,0 +1,61 @@
+# Purpose:
+# Runs all unit tests in GitHub Actions using pytest.
+# Uses MySQL as the database (same settings as docker-compose).
+# Triggers on push and pull request events.
+# ----------------------------------------------------------
+
+name: ShvikiFitness Tests
+
+on:
+  push:
+    branches: [ main, add-unit-test ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: shviki_db
+          MYSQL_USER: shviki_user
+          MYSQL_PASSWORD: shviki_pass
+          MYSQL_ROOT_PASSWORD: root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=30s
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass && break
+            echo "⏳ Waiting for MySQL..."
+            sleep 2
+          done
+
+      - name: Run tests
+        env:
+          SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@127.0.0.1:3306/shviki_db
+          FLASK_ENV: testing
+        run: pytest -v --disable-warnings
