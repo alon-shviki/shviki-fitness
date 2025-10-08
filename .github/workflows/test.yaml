@@ -50,7 +50,7 @@ jobs:
         run: |
           for i in {1..30}; do
             mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass && break
-            echo "⏳ Waiting for MySQL..."
+            echo "Waiting for MySQL..."
             sleep 2
           done
 
