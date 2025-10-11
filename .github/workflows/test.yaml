@@ -8,7 +8,7 @@ name: ShvikiFitness Tests
 
 on:
   push:
-    branches: [ main, add-unit-test ]
+    branches: [ main, add-integration-test ]
   pull_request:
 
 jobs:
