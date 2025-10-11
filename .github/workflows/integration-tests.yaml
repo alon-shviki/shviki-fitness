@@ -6,10 +6,11 @@
 name: Integration Tests
 
 on:
+  push:
+    branches: [ add-integration-test ]  # ✅ allows manual testing
   workflow_run:
-    workflows: ["test"]
-    types:
-      - completed
+    workflows: ["test"]  # 👈 must match exactly what GitHub shows
+    types: [completed]
 
 
 jobs:
