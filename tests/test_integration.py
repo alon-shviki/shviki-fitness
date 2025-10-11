@@ -1,7 +1,7 @@
 # tests/test_integration.py
 """
 Integration tests for ShvikiFitness:
-Register → Login → Save Exercise → My Exercises → Delete Exercise
+register → Login → Save Exercise → My Exercises → Delete Exercise
 All using the real Flask app and MySQL test DB.
 """
 
