@@ -2,7 +2,7 @@
 # 🧩 Unit Tests Workflow (base pipeline)
 # ----------------------------------------------------------
 
-name: Unit Tests
+name: test  
 
 on:
   push:
