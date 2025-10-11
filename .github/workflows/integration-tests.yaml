@@ -6,8 +6,6 @@
 name: Integration Tests
 
 on:
-  push:                     # 👈 TEMPORARY: run on push so GitHub registers it
-    branches: [ add-integration-test ]
   workflow_run:
     workflows: ["Unit Tests"]
     types:
