@@ -1,15 +1,18 @@
 # ----------------------------------------------------------
-# Integration Tests Workflow
-# Runs ONLY after Unit Tests pass successfully
+# 🔗 Integration Tests Workflow
+# Runs on push (for first run) AND after Unit Tests
 # ----------------------------------------------------------
 
 name: Integration Tests
 
 on:
+  push:                     # 👈 TEMPORARY: run on push so GitHub registers it
+    branches: [ add-integration-test ]
   workflow_run:
     workflows: ["Unit Tests"]
     types:
       - completed
+
 
 jobs:
   integration-tests:
