@@ -1,15 +1,13 @@
 # ----------------------------------------------------------
-# 🔗 Integration Tests Workflow
+# Integration Tests Workflow
 # Runs on push (for first run) AND after Unit Tests
 # ----------------------------------------------------------
 
 name: Integration Tests
 
 on:
-  push:
-    branches: [ add-integration-test ]  # ✅ allows manual testing
   workflow_run:
-    workflows: ["test"]  # 👈 must match exactly what GitHub shows
+    workflows: ["test"]  
     types: [completed]
 
 
