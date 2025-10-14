@@ -21,7 +21,7 @@ services:
       start_period: 30s
 
   app:
-    image: alon2810/shvikifitness:latest   # ✅ use image from Docker Hub
+    image: alon2810/shvikifitness:latest   
     restart: always
     ports:
       - "5000:5000"
