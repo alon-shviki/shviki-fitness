@@ -21,17 +21,16 @@ services:
       start_period: 30s
 
   app:
-    build: .
+    image: alon2810/shvikifitness:latest   # ✅ use image from Docker Hub
+    restart: always
     ports:
-      - "5000:5000"   # expose Flask app
-    volumes:
-      - .:/app        # live code reload (for dev)
+      - "5000:5000"
     depends_on:
       db:
         condition: service_healthy
     env_file: .env
     environment:
-      FLASK_ENV: development
+      FLASK_ENV: production
       SECRET_KEY: super-secret-key
       EXERCISE_API_KEY: a7e283e943msh9ef1e13e34a30a1p106ce1jsn207b35aa2876
       EXERCISE_API_HOST: exercisedb-api1.p.rapidapi.com
