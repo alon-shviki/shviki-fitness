@@ -1,24 +1,54 @@
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.exc import OperationalError
 from datetime import datetime
+import time
 import os
 import requests
 
 db = SQLAlchemy()
 
+
+def connect_with_retry(app, retries=10, delay=3):
+    """Try to connect to MySQL several times before giving up."""
+    for attempt in range(retries):
+        try:
+            with app.app_context():
+                db.engine.connect()
+            print("Database connection established.")
+            return True
+        except OperationalError:
+            print(f"Database not ready, retrying in {delay}s... ({attempt+1}/{retries})")
+            time.sleep(delay)
+    raise RuntimeError("Could not connect to database after several attempts.")
+
+
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
+
+    # Database configuration
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
         "SQLALCHEMY_DATABASE_URI", "sqlite:///shviki.db"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # Enable connection pooling for performance and stability
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,       # test connection before using it
+        "pool_recycle": 280,         # recycle stale connections
+        "pool_size": 5,              # base pool size
+        "max_overflow": 10,          # allow temporary extra connections
+    }
+
     db.init_app(app)
 
     from .models import User, UserExercise
 
+    # Initialize database
     with app.app_context():
+        connect_with_retry(app)
         db.create_all()
 
     # ------------------ ROUTES ------------------
@@ -73,12 +103,11 @@ def create_app():
 
         return render_template('login.html')
 
-    @app.route("/home" , methods=["GET"])
+    @app.route("/home", methods=["GET"])
     def user_home():
         if "user_id" not in session:
             flash("Please log in to save exercises", "danger")
             return redirect(url_for("login"))
-        # Sample classes data
         classes = [
             {
                 "name": "HIIT 45",
@@ -102,8 +131,6 @@ def create_app():
             },
         ]
         return render_template("user_home.html", classes=classes)
-
-
 
     # Dashboard
     @app.route('/dashboard')
@@ -146,12 +173,10 @@ def create_app():
                 url = f"{EXERCISE_API_URL}/exercises/search?search={query}"
                 response = requests.get(url, headers=EXERCISE_HEADERS)
                 if response.status_code == 200:
-                    if response.status_code == 200:
-                        data = response.json()
-                        exercise_list = data.get("data", [])
+                    data = response.json()
+                    exercise_list = data.get("data", [])
 
         return render_template("exercises.html", exercises=exercise_list, selected=selected)
-
 
     @app.route("/save_exercise/<exercise_id>", methods=["POST"])
     def save_exercise(exercise_id):
@@ -170,7 +195,7 @@ def create_app():
         db.session.add(ex)
         db.session.commit()
 
-        flash("Exercise saved to your plan!", "success")
+        flash("Exercise saved to your plan.", "success")
         return redirect(url_for("exercises"))
 
     @app.route("/my_exercises")
@@ -195,5 +220,3 @@ def create_app():
         return redirect(url_for("my_exercises"))
 
     return app
-
-
