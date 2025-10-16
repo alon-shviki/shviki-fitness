@@ -2,7 +2,7 @@ name: Tests and Build
 
 on:
   push:
-    branches: [ main, add-integration-test ]
+    branches: [ main, add-k8 ]
   pull_request:
 
 jobs:
