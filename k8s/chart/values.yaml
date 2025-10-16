@@ -1,0 +1,23 @@
+# Default values for ShvikiFitness Helm chart
+replicaCount: 3
+
+image:
+  repository: alon2810/shvikifitness
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: NodePort
+  port: 5000
+  nodePort: 30500
+
+mysql:
+  image: mysql:8.0
+  database: shviki_db
+  user: shviki_user
+  password: shviki_pass
+  rootPassword: root_password
+  storage: 2Gi
+  port: 3306
+
+resources: {}
