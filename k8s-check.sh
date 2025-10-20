@@ -1,87 +1,72 @@
 #!/bin/bash
-# Health check script for ShvikiFitness K8s deployment
-# Author: Alon Shviki
-# Namespace: shviki-fitness
+# Health check script for ShvikiFitness Helm deployment (NodePort-aware)
 
-NS="shviki-fitness"
+NAMESPACE="sh"
+RELEASE="shviki"
+
 echo "------------------------------------------------------"
-echo " ShvikiFitness Kubernetes Health Check"
-echo " Namespace: $NS"
+echo " ✅ ShvikiFitness Helm Deployment Health Check"
+echo " Namespace: $NAMESPACE | Release: $RELEASE"
 echo "------------------------------------------------------"
 
-# Check if namespace exists
-if ! kubectl get ns "$NS" &>/dev/null; then
-  echo "❌ Namespace '$NS' not found. Please deploy first."
+# ✅ 1. Check Namespace
+if ! kubectl get ns "$NAMESPACE" &>/dev/null; then
+  echo "❌ Namespace '$NAMESPACE' not found. Deploy Helm release first."
   exit 1
 fi
+echo "✅ Namespace exists."
 
-echo "✅ Namespace found."
-
-echo
-echo "1️⃣  Checking pods..."
-kubectl get pods -n "$NS"
-echo
-
-# Verify all pods are running
-NOT_READY=$(kubectl get pods -n "$NS" --no-headers | awk '$3!="Running" || $2!="1/1" {print $1}')
-if [ -z "$NOT_READY" ]; then
-  echo "✅ All pods are running and healthy."
+# ✅ 2. Check Pods
+echo -e "\n2️⃣ Checking Pods..."
+kubectl get pods -n "$NAMESPACE"
+if kubectl get pods -n "$NAMESPACE" --no-headers | awk '$3!="Running"' | grep -q .; then
+  echo "⚠️ Some pods are not healthy!"
 else
-  echo "⚠️  Some pods not ready:"
-  echo "$NOT_READY"
+  echo "✅ All pods are healthy."
 fi
 
-echo
-echo "2️⃣  Checking PersistentVolumeClaim..."
-kubectl get pvc -n "$NS"
-PVC_STATUS=$(kubectl get pvc -n "$NS" -o jsonpath='{.items[0].status.phase}')
-if [ "$PVC_STATUS" == "Bound" ]; then
-  echo "✅ PVC is bound successfully."
+# ✅ 3. Check PVC
+echo -e "\n3️⃣ Checking PVC..."
+kubectl get pvc -n "$NAMESPACE"
+PVC_STATUS=$(kubectl get pvc -n "$NAMESPACE" -o jsonpath='{.items[0].status.phase}' 2>/dev/null)
+echo "PVC Status: $PVC_STATUS"
+
+# ✅ 4. Check Services
+echo -e "\n4️⃣ Checking Services..."
+kubectl get svc -n "$NAMESPACE"
+
+# ✅ 5. Check NodePort Access for Flask Service
+echo -e "\n5️⃣ Checking Flask Service Exposure..."
+
+SERVICE_NAME="${RELEASE}-service"
+SERVICE_TYPE=$(kubectl get svc "$SERVICE_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.type}' 2>/dev/null)
+
+if [ "$SERVICE_TYPE" == "NodePort" ]; then
+  NODE_PORT=$(kubectl get svc "$SERVICE_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.ports[0].nodePort}')
+  MINIKUBE_IP=$(minikube ip)
+  echo "✅ Flask is exposed via NodePort"
+  echo "🌐 Access at: http://$MINIKUBE_IP:$NODE_PORT"
+elif [ "$SERVICE_TYPE" == "ClusterIP" ]; then
+  echo "⚠️ Service is ClusterIP (internal only) — No external browser access"
 else
-  echo "❌ PVC not bound — check storage class."
+  echo "❌ Flask service not found or unsupported service type."
 fi
 
-echo
-echo "3️⃣  Checking Services..."
-kubectl get svc -n "$NS"
-FLASK_SVC=$(kubectl get svc flask-service -n "$NS" --no-headers | awk '{print $3}')
-MYSQL_SVC=$(kubectl get svc mysql-service -n "$NS" --no-headers | awk '{print $3}')
-if [[ -n "$FLASK_SVC" && -n "$MYSQL_SVC" ]]; then
-  echo "✅ Both Flask and MySQL services detected."
-else
-  echo "❌ Missing one or more services."
-fi
-
-echo
-echo "4️⃣  Checking Pod Conditions..."
-for POD in $(kubectl get pods -n "$NS" -o name); do
-  echo "- $POD"
-  kubectl get "$POD" -n "$NS" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep True &>/dev/null \
-    && echo "   ✅ Ready" || echo "   ❌ Not Ready"
-done
-
-echo
-echo "5️⃣  Checking external access..."
-URL=$(minikube service flask-service -n "$NS" --url 2>/dev/null)
-if [ -n "$URL" ]; then
-  echo "✅ Flask service exposed at: $URL"
-  echo "   (Try opening this in your browser)"
-else
-  echo "⚠️  Could not detect NodePort service URL."
-fi
-
-echo
-echo "6️⃣  Checking MySQL persistence..."
-POD=$(kubectl get pod -n "$NS" -l app=mysql -o name)
-if [ -n "$POD" ]; then
-  kubectl exec -n "$NS" "$POD" -- mysql -u shviki_user -pshviki_pass -e "USE shviki_db; SELECT COUNT(*) AS user_count FROM users;" 2>/dev/null \
-    && echo "✅ Database reachable and query executed successfully." \
-    || echo "⚠️  Database not responding."
+# ✅ 6. Check MySQL Access
+echo -e "\n6️⃣ Checking MySQL Database..."
+MYSQL_POD=$(kubectl get pod -n "$NAMESPACE" -l app=mysql -o jsonpath='{.items[0].metadata.name}')
+if [ -n "$MYSQL_POD" ]; then
+  kubectl exec -n "$NAMESPACE" "$MYSQL_POD" -- \
+    mysql -u shviki -pshviki123 -e "USE shviki_db; SHOW TABLES;" &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "✅ MySQL is reachable & responding."
+  else
+    echo "❌ MySQL is running but rejecting queries."
+  fi
 else
   echo "❌ MySQL pod not found."
 fi
 
-echo
 echo "------------------------------------------------------"
-echo " Health check completed."
+echo " ✅ Health Check Done."
 echo "------------------------------------------------------"

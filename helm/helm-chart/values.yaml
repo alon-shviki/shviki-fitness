@@ -1,16 +1,36 @@
+# Summary: Central Configuration File for Helm Chart
+# Description: 
+# This file serves as the central configuration point for the entire Helm chart.
+# It defines all key parameters—such as image, port, secrets, and storage—used across your templates.
+# Helm dynamically injects these values into your manifests at deployment time, making the setup
+# modular, reusable, and easy to maintain.
+
+# Flask Application Configuration
 app:
-  name: shviki-app
-  image: "alon2810/shvikifitness:latest"
-  replicas: 1
-  port: 5000
+  name: shviki-app                     # Flask app name
+  image: "alon2810/shvikifitness:latest"  # Flask Docker image
+  replicas: 1                          # Number of Flask pods
+  port: 5000                           # Flask container port
 
+# MySQL Database Configuration
 mysql:
-  image: "mysql:8.0"
-  database: "shviki_db"
-  user: "shviki"
-  password: "shviki123"
-  rootPassword: "root123"
-  port: 3306
+  image: "mysql:8.0"                   # MySQL image
+  database: "shviki_db"                # Database name
+  user: "shviki"                       # MySQL user
+  port: 3306                           # MySQL port
+  storage:
+    size: 1Gi                          # PVC size for MySQL data
+    class: "standard"                  # Storage class (Minikube default)
+  secretName: shviki-mysql-secret      # Secret name for MySQL and Flask credentials
 
+# Service Configuration
 service:
-  type: ClusterIP
+  type: NodePort                       # Service type for Flask (external access)
+  port: 80                             # Internal service port
+  nodePort: 30080                      # NodePort for Minikube or manual access
+
+# Secret Values (Injected into Kubernetes Secret)
+secret:
+  mysql:
+    rootPassword: "root123"            # MySQL root password
+    userPassword: "shviki123"          # MySQL user password

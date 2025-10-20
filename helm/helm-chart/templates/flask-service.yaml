@@ -1,12 +1,23 @@
+# Summary: Flask Application Service
+# Description:
+# This Service exposes the Flask application running in the Deployment.
+#
+# If type: ClusterIP, the Service is internal only.
+# If type: NodePort, it allows external access (for example, via
+#   'minikube service shviki-fitness-service --url').
+#
+# This Service provides the entry point for users to access the ShvikiFitness web app.
+
+# Flask Application Service Configuration
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Chart.Name }}-service
+  name: {{ .Chart.Name }}-service              # Service name for the Flask web app
 spec:
+  type: {{ .Values.service.type }}             # Service type (NodePort, ClusterIP, or LoadBalancer)
   selector:
-    app: {{ .Values.app.name }}
+    app: {{ .Values.app.name }}                # Matches pods labeled with the Flask app name
   ports:
-    - port: 80
-      targetPort: {{ .Values.app.port }}
-      protocol: TCP
-  type: {{ .Values.service.type }}
+    - port: 80                                 # Service port exposed inside the cluster (HTTP)
+      targetPort: {{ .Values.app.port }}       # Container port Flask listens on (from values.yaml)
+      protocol: TCP                            # Protocol used for the web service

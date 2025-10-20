@@ -1,22 +1,50 @@
+# Summary: Deployment for Flask Application
+# Description:
+# This Deployment runs the Flask application as a managed, scalable workload.
+# It connects securely to a MySQL database using environment variables loaded
+# from a Kubernetes Secret, avoiding hard-coded credentials.
+
+
+# Flask Application Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Chart.Name }}-app
+  name: {{ .Values.app.name }}                    # Deployment name (defined in values.yaml)
+
 spec:
-  replicas: {{ .Values.app.replicas }}
+  replicas: {{ .Values.app.replicas }}            # Number of Flask app replicas to run
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}
+      app: {{ .Values.app.name }}                 # Identifies pods managed by this Deployment
+
+  # Pod Template
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}
+        app: {{ .Values.app.name }}               # Labels for pod selection
     spec:
       containers:
-        - name: {{ .Values.app.name }}
-          image: "{{ .Values.app.image }}"
+        - name: {{ .Values.app.name }}            # Container name (Flask app)
+          image: "{{ .Values.app.image }}"        # Docker image for Flask (from values.yaml)
           ports:
-            - containerPort: {{ .Values.app.port }}
+            - containerPort: {{ .Values.app.port }}  # Flask’s internal listening port
+
+          # Environment Variables (Database Configuration)
           env:
-            - name: SQLALCHEMY_DATABASE_URI
-              value: "mysql+pymysql://{{ .Values.mysql.user }}:{{ .Values.mysql.password }}@{{ .Chart.Name }}-mysql/{{ .Values.mysql.database }}"
+            - name: DB_HOST
+              value: "{{ .Chart.Name }}-mysql"    # Points to the MySQL Service name
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}  # Get from Kubernetes Secret
+                  key: MYSQL_DATABASE
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_PASSWORD

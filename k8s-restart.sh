@@ -1,54 +1,72 @@
 #!/bin/bash
-# Restart script for ShvikiFitness Kubernetes deployment
+# Restart (or redeploy) script for ShvikiFitness Helm release
 # Author: Alon Shviki
 
-NS="shviki-fitness"
+RELEASE="shviki"
+NS="sh"
 MODE=$1
+CHART_PATH="./helm/helm-chart"
 
 echo "------------------------------------------------------"
-echo " Restarting ShvikiFitness environment"
+echo " 🔁 Restarting ShvikiFitness Helm environment"
 echo " Namespace: $NS"
 echo " Mode: ${MODE:---keep}"
 echo "------------------------------------------------------"
 
-# Check namespace
+# Ensure namespace exists
 if ! kubectl get ns "$NS" &>/dev/null; then
   echo "🆕 Creating namespace $NS..."
   kubectl create ns "$NS"
 fi
 
-# Clean up old resources
-echo "🧹 Deleting old workloads in $NS..."
-kubectl delete all --all -n "$NS" --ignore-not-found
-kubectl delete configmap --all -n "$NS" --ignore-not-found
-kubectl delete secret --all -n "$NS" --ignore-not-found
-
-if [ "$MODE" == "--fresh" ]; then
-  echo "⚠️  FRESH MODE: Deleting PVC and database volume (this erases MySQL data)"
-  kubectl delete pvc --all -n "$NS" --ignore-not-found
+# Check if release exists
+if helm list -n "$NS" | grep -q "$RELEASE"; then
+  echo "🧹 Deleting old Helm release '$RELEASE'..."
+  helm uninstall "$RELEASE" -n "$NS"
 else
-  echo "✅ KEEP MODE: Preserving PVC and database data"
+  echo "ℹ️ No existing Helm release found — fresh start."
 fi
 
-# Redeploy manifests
-echo
-echo "🚀 Reapplying manifests..."
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/db/ -n "$NS"
-kubectl apply -f k8s/app/ -n "$NS"
+# Handle PVC preservation or deletion
+if [ "$MODE" == "--fresh" ]; then
+  echo "⚠️  FRESH MODE: Deleting all PVCs (MySQL data will be lost)"
+  kubectl delete pvc --all -n "$NS" --ignore-not-found
+else
+  echo "✅ KEEP MODE: Preserving existing PVCs (MySQL data kept)"
+fi
 
+# Reinstall via Helm
 echo
-echo "⏳ Waiting for pods to start..."
-kubectl rollout status statefulset/mysql -n "$NS" --timeout=180s || true
-kubectl rollout status deploy/flask-deployment -n "$NS" --timeout=180s || true
+echo "🚀 Installing Helm release..."
+helm install "$RELEASE" "$CHART_PATH" --namespace "$NS" --create-namespace
 
+if [ $? -ne 0 ]; then
+  echo "❌ Helm install failed. Exiting."
+  exit 1
+fi
+
+# Wait for workloads to start
+echo
+echo "⏳ Waiting for pods to become Ready..."
+kubectl rollout status deployment/"${RELEASE}-app" -n "$NS" --timeout=180s || true
+kubectl rollout status statefulset/"${RELEASE}-mysql" -n "$NS" --timeout=180s || true
+
+# Show current state
 echo
 echo "✅ Restart complete!"
 kubectl get pods -n "$NS"
 kubectl get svc -n "$NS"
 
+# Show external access
+echo
+SERVICE_URL=$(minikube service "${RELEASE}-service" -n "$NS" --url 2>/dev/null)
+if [ -n "$SERVICE_URL" ]; then
+  echo "🌐 Access Flask via: $SERVICE_URL"
+else
+  echo "⚠️  Flask service URL not available — check NodePort or Ingress."
+fi
+
 echo
 echo "------------------------------------------------------"
-echo " ShvikiFitness environment redeployed successfully."
-echo " Access Flask via: $(minikube service flask-service -n $NS --url)"
+echo " ✅ ShvikiFitness Helm environment redeployed successfully."
 echo "------------------------------------------------------"
