@@ -1,0 +1,16 @@
+app:
+  name: shviki-app
+  image: "alon2810/shvikifitness:latest"
+  replicas: 1
+  port: 5000
+
+mysql:
+  image: "mysql:8.0"
+  database: "shviki_db"
+  user: "shviki"
+  password: "shviki123"
+  rootPassword: "root123"
+  port: 3306
+
+service:
+  type: ClusterIP
