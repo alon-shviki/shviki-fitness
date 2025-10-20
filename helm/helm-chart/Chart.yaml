@@ -1,6 +1,17 @@
-apiVersion: v2
-name: shviki-fitness
-description: Helm chart for ShvikiFitness Flask + MySQL
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
+# Summary: Helm Chart for ShvikiFitness (Flask + MySQL)
+# Description:
+# This file defines the Helm chart metadata for the ShvikiFitness application.
+# It describes the chart itself—not the running app—and helps Helm manage and deploy
+# the Flask application and its MySQL database as a unified release.
+
+# Chart Metadata
+apiVersion: v2                            # Helm chart API version (v2 is standard for Helm 3)
+
+# Basic Chart Information
+name: shviki-fitness                      # The name of this Helm chart (used during deployment)
+description: Helm chart for ShvikiFitness Flask + MySQL  # Short description of what this chart does
+type: application                         # Declares this chart as an application (not a dependency library)
+
+# Versioning
+version: 0.1.0                            # Chart version (for Helm packaging and upgrades)
+appVersion: "1.0.0"                       # Actual application version (displayed in Helm status)

@@ -1,29 +1,70 @@
+# Summary: MySQL StatefulSet Configuration
+# Description:
+# This StatefulSet ensures that MySQL always receives a persistent, stable volume and hostname.
+# Even if the pod restarts or the node changes, the data remains intact because the PersistentVolumeClaim
+# is tied to the StatefulSet’s identity.
+# This approach is ideal for databases, unlike Deployments, which recreate pods with new volumes.
+
+# MySQL StatefulSet Configuration
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Chart.Name }}-mysql
+  name: {{ .Chart.Name }}-mysql                     # StatefulSet name (unique to this release)
+
 spec:
-  serviceName: {{ .Chart.Name }}-mysql
-  replicas: 1
+  serviceName: {{ .Chart.Name }}-mysql              # Headless service name for stable DNS
+  replicas: 1                                       # One MySQL replica (StatefulSet handles persistence)
+
+  # Pod Selector
   selector:
     matchLabels:
-      app: mysql
+      app: mysql                                    # Used to match pods managed by this StatefulSet
+
+  # Pod Template
   template:
     metadata:
       labels:
-        app: mysql
+        app: mysql                                  # Labels for pod identification
     spec:
       containers:
-        - name: mysql
-          image: "{{ .Values.mysql.image }}"
+        - name: mysql                               # Container name
+          image: "{{ .Values.mysql.image }}"         # MySQL image defined in values.yaml
+
+          # Environment Variables (loaded from Secret)
           env:
             - name: MYSQL_DATABASE
-              value: "{{ .Values.mysql.database }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}  # Reference to secret name
+                  key: MYSQL_DATABASE                  # Key inside the secret
             - name: MYSQL_USER
-              value: "{{ .Values.mysql.user }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_USER
             - name: MYSQL_PASSWORD
-              value: "{{ .Values.mysql.password }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_PASSWORD
             - name: MYSQL_ROOT_PASSWORD
-              value: "{{ .Values.mysql.rootPassword }}"
-          ports:
-            - containerPort: {{ .Values.mysql.port }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_ROOT_PASSWORD
+
+          # Persistent Storage Mount
+          volumeMounts:
+            - name: mysql-storage                     # Matches PVC name below
+              mountPath: /var/lib/mysql               # MySQL data directory (persistent)
+
+  # Persistent Volume Claim (PVC) Template
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-storage                          # PVC name (unique per StatefulSet pod)
+      spec:
+        accessModes: ["ReadWriteOnce"]               # Only one node can write at a time
+        storageClassName: {{ .Values.mysql.storage.class | quote }}  # Uses the defined storage class
+        resources:
+          requests:
+            storage: {{ .Values.mysql.storage.size | quote }}        # Size requested (from values.yaml)
