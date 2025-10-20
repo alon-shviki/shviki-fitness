@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}-app
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+    spec:
+      containers:
+        - name: {{ .Values.app.name }}
+          image: "{{ .Values.app.image }}"
+          ports:
+            - containerPort: {{ .Values.app.port }}
+          env:
+            - name: SQLALCHEMY_DATABASE_URI
+              value: "mysql+pymysql://{{ .Values.mysql.user }}:{{ .Values.mysql.password }}@{{ .Chart.Name }}-mysql/{{ .Values.mysql.database }}"
