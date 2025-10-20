@@ -1,48 +1,66 @@
-# Summary: Deployment for Flask Application
+# Summary: Flask Application Deployment
 # Description:
-# This Deployment runs the Flask application as a managed, scalable workload.
-# It connects securely to a MySQL database using environment variables loaded
-# from a Kubernetes Secret, avoiding hard-coded credentials.
+# Defines the deployment configuration for the Flask application in the ShvikiFitness project.
+# This manifest specifies the number of replicas, container image, exposed port, resource limits,
+# and environment variables for connecting to the MySQL database.
+# The values are dynamically injected from `values.yaml` during Helm rendering.
 
-
-# Flask Application Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}                    # Deployment name (defined in values.yaml)
-
+  name: {{ .Values.app.name }}
 spec:
-  replicas: {{ .Values.app.replicas }}            # Number of Flask app replicas to run
+  # Number of Flask application pods to run (set in values.yaml)
+  replicas: {{ .Values.app.replicas }}
+
+  # Label selector ensures the Deployment manages matching pods
   selector:
     matchLabels:
-      app: {{ .Values.app.name }}                 # Identifies pods managed by this Deployment
+      app: {{ .Values.app.name }}
 
-  # Pod Template
   template:
     metadata:
       labels:
-        app: {{ .Values.app.name }}               # Labels for pod selection
+        app: {{ .Values.app.name }}
     spec:
       containers:
-        - name: {{ .Values.app.name }}            # Container name (Flask app)
-          image: "{{ .Values.app.image }}"        # Docker image for Flask (from values.yaml)
+        - name: {{ .Values.app.name }}
+          image: "{{ .Values.app.image }}"
+          
+          # Container port that Flask listens on
           ports:
-            - containerPort: {{ .Values.app.port }}  # Flask’s internal listening port
+            - containerPort: {{ .Values.app.port }}
 
-          # Environment Variables (Database Configuration)
+          # Resource requests and limits define how much CPU and memory each pod gets
+          resources:
+            requests:
+              cpu: 100m        # Minimum guaranteed CPU
+              memory: 128Mi    # Minimum guaranteed memory
+            limits:
+              cpu: 300m        # Maximum CPU the container can use
+              memory: 256Mi    # Maximum memory allocation
+
+          # Environment variables used by Flask to connect to MySQL
           env:
+            # Hostname of the MySQL service
             - name: DB_HOST
-              value: "{{ .Chart.Name }}-mysql"    # Points to the MySQL Service name
+              value: "{{ .Chart.Name }}-mysql"
+
+            # Database name stored in the MySQL Secret
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mysql.secretName }}  # Get from Kubernetes Secret
+                  name: {{ .Values.mysql.secretName }}
                   key: MYSQL_DATABASE
+
+            # Database username stored in the MySQL Secret
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_USER
+
+            # Database password stored in the MySQL Secret
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
