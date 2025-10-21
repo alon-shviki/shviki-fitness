@@ -7,8 +7,8 @@ import time
 import os
 import requests
 
+# Initialize SQLAlchemy globally
 db = SQLAlchemy()
-
 
 def connect_with_retry(app, retries=10, delay=3):
     """Try to connect to MySQL several times before giving up."""
@@ -19,34 +19,40 @@ def connect_with_retry(app, retries=10, delay=3):
             print("Database connection established.")
             return True
         except OperationalError:
-            print(f"Database not ready, retrying in {delay}s... ({attempt+1}/{retries})")
+            print(f"Database not ready, retrying in {delay}s... ({attempt + 1}/{retries})")
             time.sleep(delay)
     raise RuntimeError("Could not connect to database after several attempts.")
-
 
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
 
-    # Database configuration
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-        "SQLALCHEMY_DATABASE_URI", "sqlite:///shviki.db"
-    )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # --- Build SQLAlchemy connection dynamically from env vars ---
+    db_user = os.environ.get("DB_USER", "shviki")
+    db_pass = os.environ.get("DB_PASSWORD", "shviki123")
+    db_host = os.environ.get("DB_HOST", "shviki-fitness-mysql")
+    db_name = os.environ.get("DB_NAME", "shviki_db")
 
-    # Enable connection pooling for performance and stability
+    # If all values exist, build a MySQL URI
+    if db_user and db_pass and db_host and db_name:
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:3306/{db_name}"
+        )
+    else:
+        # Fallback for local dev (SQLite)
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///shviki.db"
+
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,       # test connection before using it
-        "pool_recycle": 280,         # recycle stale connections
-        "pool_size": 5,              # base pool size
-        "max_overflow": 10,          # allow temporary extra connections
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+        "pool_size": 5,
+        "max_overflow": 10,
     }
 
     db.init_app(app)
 
     from .models import User, UserExercise
-
-    # Initialize database
     with app.app_context():
         connect_with_retry(app)
         db.create_all()

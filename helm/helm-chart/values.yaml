@@ -1,45 +1,66 @@
 # Summary: Central Configuration File for Helm Chart
 # Description:
 # This file serves as the central configuration point for the entire Helm chart.
-# It defines all key parameters—such as image, port, secrets, and storage—used across your templates.
-# Helm dynamically injects these values into your manifests at deployment time,
+# It defines all key parameters—such as image, ports, secrets, resources, storage, and autoscaling—
+# used across all templates. Helm dynamically injects these values into your manifests at deployment time,
 # making the setup modular, reusable, and easy to maintain.
 
 # Flask Application Configuration
 app:
-  name: shviki-app                      # Logical name for the Flask Deployment
-  image: "alon2810/shvikifitness:latest" # Docker image for your app
-  replicas: 1                           # Number of pods to run (can scale up)
-  port: 5000                            # Port Flask listens on inside the container
+  name: shviki-app                       # Logical name for the Flask Deployment
+  image: "alon2810/shvikifitness:latest" # Docker image for your Flask app
+  replicas: 1                            # Number of Flask pods (can scale via HPA)
+  port: 5000                             # Port Flask listens on inside the container
+
+  # Resource allocations for the Flask container
+  resources:
+    requests:
+      cpu: 100m        # Minimum guaranteed CPU (0.1 core)
+      memory: 128Mi    # Minimum guaranteed memory
+    limits:
+      cpu: 300m        # Maximum CPU before throttling
+      memory: 256Mi    # Maximum memory limit
 
 # MySQL Database Configuration
 mysql:
-  image: "mysql:8.0"                    # MySQL container image
-  database: "shviki_db"                 # Default database name
-  user: "shviki"                        # Database username
-  port: 3306                            # MySQL port inside the pod
+  image: "mysql:8.0"                     # MySQL container image
+  database: "shviki_db"                  # Default database name
+  user: "shviki"                         # Application database username
+  port: 3306                             # MySQL container port
 
-  storage:                              # Persistent volume settings
-    size: 1Gi                           # Volume size for MySQL data
-    class: "standard"                   # Storage class used (Minikube default)
-  
-  secretName: shviki-mysql-secret       # Name of the Kubernetes Secret with MySQL credentials
+  storage:                               # Persistent volume configuration
+    size: 1Gi                            # Volume size for MySQL data
+    class: "standard"                    # Storage class used (Minikube default)
+
+  secretName: shviki-mysql-secret        # Name of the Kubernetes Secret with MySQL credentials
+
+  # Resource allocations for the MySQL container
+  resources:
+    requests:
+      cpu: 100m        # Minimum guaranteed CPU for MySQL
+      memory: 256Mi    # Minimum guaranteed memory
+    limits:
+      cpu: 500m        # Maximum CPU for MySQL pod
+      memory: 512Mi    # Maximum memory before throttling
 
 # Service Configuration
 service:
-  type: NodePort                        # Expose Flask externally (NodePort for Minikube)
-  port: 80                              # Internal cluster port for HTTP traffic
-  nodePort: 30080                       # External port mapped to host machine
+  type: NodePort                         # Expose Flask externally (NodePort for Minikube)
+  port: 80                               # Cluster-internal port
+  nodePort: 30080                        # External port mapped to host machine
 
-# Secret Values (Injected into Kubernetes Secret)
+# Secret Values (Injected into Kubernetes Secrets)
 secret:
   mysql:
-    rootPassword: "root123"             # MySQL root password
-    userPassword: "shviki123"           # MySQL user password
+    rootPassword: "root123"              # Root password for MySQL
+    userPassword: "shviki123"            # Application user password
+
+  app:
+    secretKey: "replace-with-generated-key"  # Flask SECRET_KEY used for sessions, cookies, CSRF tokens
 
 # Autoscaling Configuration
 autoscaling:
-  enabled: true                         # Enables the HPA if set to true
-  minReplicas: 1                        # Minimum number of Flask pods
-  maxReplicas: 3                        # Maximum number of Flask pods
-  targetCPUUtilizationPercentage: 70    # Target CPU utilization threshold for scaling
+  enabled: true                          # Enable the Horizontal Pod Autoscaler
+  minReplicas: 1                         # Minimum Flask replicas
+  maxReplicas: 3                         # Maximum Flask replicas
+  targetCPUUtilizationPercentage: 70     # Target CPU utilization threshold for scaling
