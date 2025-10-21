@@ -2,7 +2,7 @@ name: Tests and Build
 
 on:
   push:
-    branches: [ main, add-integration-test ]
+    branches: [ main, add-k8 ]
   pull_request:
 
 jobs:
@@ -21,18 +21,15 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_password"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
           --health-start-period=30s
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -44,14 +41,18 @@ jobs:
       - name: Wait for MySQL to be ready
         run: |
           for i in {1..30}; do
-            mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass && break
+            mysqladmin ping -h 127.0.0.1 -uroot -proot_password && break
             echo "Waiting for MySQL to start..."
             sleep 2
           done
 
       - name: Run Unit Tests
         env:
-          SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@127.0.0.1:3306/shviki_db
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: shviki_user
+          DB_PASSWORD: shviki_pass
+          DB_NAME: shviki_db
           FLASK_ENV: testing
         run: |
           echo "Running unit tests..."
@@ -61,7 +62,7 @@ jobs:
   integration-tests:
     name: Run Integration Tests
     runs-on: ubuntu-latest
-    needs: unit-tests  
+    needs: unit-tests
 
     services:
       mysql:
@@ -74,18 +75,15 @@ jobs:
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_password"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
           --health-start-period=30s
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -97,14 +95,18 @@ jobs:
       - name: Wait for MySQL to be ready
         run: |
           for i in {1..30}; do
-            mysqladmin ping -h 127.0.0.1 -ushviki_user -pshviki_pass && break
+            mysqladmin ping -h 127.0.0.1 -uroot -proot_password && break
             echo "Waiting for MySQL to start..."
             sleep 2
           done
 
       - name: Run Integration Tests
         env:
-          SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@127.0.0.1:3306/shviki_db
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: shviki_user
+          DB_PASSWORD: shviki_pass
+          DB_NAME: shviki_db
           FLASK_ENV: testing
         run: |
           echo "Running integration tests..."
@@ -114,12 +116,12 @@ jobs:
   build:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: integration-tests 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    needs: integration-tests
 
-      - name: Log in to DockerHub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}

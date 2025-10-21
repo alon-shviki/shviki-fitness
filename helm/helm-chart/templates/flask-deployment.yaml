@@ -1,0 +1,61 @@
+# Summary: Flask Application Deployment
+# Description:
+# Defines how the Flask web application runs in Kubernetes.
+# It configures replicas, container image, ports, resources, and environment variables.
+# Flask uses a dedicated Secret for SECRET_KEY and another for MySQL credentials.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+spec:
+  replicas: {{ .Values.app.replicas }}      # Number of pods
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+    spec:
+      containers:
+        - name: {{ .Values.app.name }}
+          image: "{{ .Values.app.image }}"   # Flask image
+          ports:
+            - containerPort: {{ .Values.app.port }}
+
+          # Resource allocation
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+
+          env:
+            # Flask Secret Key (security token for sessions & cookies)
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.name }}-secret
+                  key: SECRET_KEY
+
+            # MySQL connection details (fetched from MySQL Secret)
+            - name: DB_HOST
+              value: "{{ .Chart.Name }}-mysql"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_DATABASE
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_PASSWORD
