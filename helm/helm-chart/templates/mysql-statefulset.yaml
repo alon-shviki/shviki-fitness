@@ -1,42 +1,40 @@
-# Summary: MySQL StatefulSet Configuration
+# Summary: MySQL StatefulSet
 # Description:
-# This StatefulSet ensures that MySQL always receives a persistent, stable volume and hostname.
-# Even if the pod restarts or the node changes, the data remains intact because the PersistentVolumeClaim
-# is tied to the StatefulSet’s identity.
-# This approach is ideal for databases, unlike Deployments, which recreate pods with new volumes.
+# This template defines the MySQL StatefulSet for the ShvikiFitness application.
+# A StatefulSet provides stable, unique network identities and persistent storage for MySQL.
+# It uses a PersistentVolumeClaim to ensure database data is retained even after pod restarts.
+# All configuration values are dynamically injected from values.yaml to make the chart modular and reusable.
 
-# MySQL StatefulSet Configuration
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Chart.Name }}-mysql                     # StatefulSet name (unique to this release)
-
+  name: {{ .Chart.Name }}-mysql
 spec:
-  serviceName: {{ .Chart.Name }}-mysql              # Headless service name for stable DNS
-  replicas: 1                                       # One MySQL replica (StatefulSet handles persistence)
-
-  # Pod Selector
+  serviceName: {{ .Chart.Name }}-mysql     # Associated headless service for stable DNS records
+  replicas: 1                              # Number of MySQL pods (typically 1 for stateful DB)
   selector:
     matchLabels:
-      app: mysql                                    # Used to match pods managed by this StatefulSet
-
-  # Pod Template
+      app: mysql                           # Label selector to identify MySQL pods
   template:
     metadata:
       labels:
-        app: mysql                                  # Labels for pod identification
+        app: mysql                         # Label applied to pod for service matching
     spec:
       containers:
-        - name: mysql                               # Container name
-          image: "{{ .Values.mysql.image }}"         # MySQL image defined in values.yaml
+        - name: mysql
+          image: "{{ .Values.mysql.image }}"       # MySQL image defined in values.yaml
+          ports:
+            - containerPort: {{ .Values.mysql.port }}  # MySQL port (default 3306)
+              name: mysql
 
-          # Environment Variables (loaded from Secret)
+          # Environment variables pulled from Kubernetes Secret
+          # These are used to initialize the MySQL root password, database, and user credentials.
           env:
             - name: MYSQL_DATABASE
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mysql.secretName }}  # Reference to secret name
-                  key: MYSQL_DATABASE                  # Key inside the secret
+                  name: {{ .Values.mysql.secretName }}
+                  key: MYSQL_DATABASE
             - name: MYSQL_USER
               valueFrom:
                 secretKeyRef:
@@ -53,18 +51,29 @@ spec:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_ROOT_PASSWORD
 
-          # Persistent Storage Mount
-          volumeMounts:
-            - name: mysql-storage                     # Matches PVC name below
-              mountPath: /var/lib/mysql               # MySQL data directory (persistent)
+          # Define compute and memory resources for MySQL
+          # Requests guarantee baseline performance; limits prevent overuse of resources.
+          resources:
+            requests:
+              cpu: {{ .Values.mysql.resources.requests.cpu }}
+              memory: {{ .Values.mysql.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.mysql.resources.limits.cpu }}
+              memory: {{ .Values.mysql.resources.limits.memory }}
 
-  # Persistent Volume Claim (PVC) Template
+          # Mount the persistent storage volume inside the MySQL container
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql     # Path where MySQL stores data files
+
+  # VolumeClaimTemplate section creates a dedicated PersistentVolumeClaim per replica
+  # Ensures data persistence across restarts or rescheduling.
   volumeClaimTemplates:
     - metadata:
-        name: mysql-storage                          # PVC name (unique per StatefulSet pod)
+        name: mysql-storage                 # PVC name used in volumeMounts
       spec:
-        accessModes: ["ReadWriteOnce"]               # Only one node can write at a time
-        storageClassName: {{ .Values.mysql.storage.class | quote }}  # Uses the defined storage class
+        accessModes: ["ReadWriteOnce"]      # Single-node read/write access
+        storageClassName: {{ .Values.mysql.storage.class | quote }}  # Storage class (e.g., standard)
         resources:
           requests:
-            storage: {{ .Values.mysql.storage.size | quote }}        # Size requested (from values.yaml)
+            storage: {{ .Values.mysql.storage.size | quote }}        # Storage size defined in values.yaml

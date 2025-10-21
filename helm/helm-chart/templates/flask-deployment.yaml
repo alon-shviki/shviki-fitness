@@ -1,23 +1,18 @@
 # Summary: Flask Application Deployment
 # Description:
-# Defines the deployment configuration for the Flask application in the ShvikiFitness project.
-# This manifest specifies the number of replicas, container image, exposed port, resource limits,
-# and environment variables for connecting to the MySQL database.
-# The values are dynamically injected from `values.yaml` during Helm rendering.
+# Defines how the Flask web application runs in Kubernetes.
+# It configures replicas, container image, ports, resources, and environment variables.
+# Flask uses a dedicated Secret for SECRET_KEY and another for MySQL credentials.
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.app.name }}
 spec:
-  # Number of Flask application pods to run (set in values.yaml)
-  replicas: {{ .Values.app.replicas }}
-
-  # Label selector ensures the Deployment manages matching pods
+  replicas: {{ .Values.app.replicas }}      # Number of pods
   selector:
     matchLabels:
       app: {{ .Values.app.name }}
-
   template:
     metadata:
       labels:
@@ -25,42 +20,40 @@ spec:
     spec:
       containers:
         - name: {{ .Values.app.name }}
-          image: "{{ .Values.app.image }}"
-          
-          # Container port that Flask listens on
+          image: "{{ .Values.app.image }}"   # Flask image
           ports:
             - containerPort: {{ .Values.app.port }}
 
-          # Resource requests and limits define how much CPU and memory each pod gets
+          # Resource allocation
           resources:
             requests:
-              cpu: 100m        # Minimum guaranteed CPU
-              memory: 128Mi    # Minimum guaranteed memory
+              cpu: 100m
+              memory: 128Mi
             limits:
-              cpu: 300m        # Maximum CPU the container can use
-              memory: 256Mi    # Maximum memory allocation
+              cpu: 300m
+              memory: 256Mi
 
-          # Environment variables used by Flask to connect to MySQL
           env:
-            # Hostname of the MySQL service
+            # Flask Secret Key (security token for sessions & cookies)
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.name }}-secret
+                  key: SECRET_KEY
+
+            # MySQL connection details (fetched from MySQL Secret)
             - name: DB_HOST
               value: "{{ .Chart.Name }}-mysql"
-
-            # Database name stored in the MySQL Secret
             - name: DB_NAME
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_DATABASE
-
-            # Database username stored in the MySQL Secret
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_USER
-
-            # Database password stored in the MySQL Secret
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
