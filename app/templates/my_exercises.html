@@ -9,30 +9,31 @@
         </div>
     </div>
 
+    {% if exercises %}
     <div class="row">
         {% for ex in exercises %}
         <div class="col-md-4 mb-3">
             <div class="card h-100 shadow-sm">
                 <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">{{ ex.exercise_name }}</h5>
+                    <h5 class="card-title">
+                        <a href="https://www.youtube.com/results?search_query={{ ex.exercise_name | urlencode }}+exercise"
+                           target="_blank" class="text-decoration-none text-danger">
+                           🎥 {{ ex.exercise_name }}
+                        </a>
+                    </h5>
                     <p class="card-text mb-1"><b>Target:</b> {{ ex.target }}</p>
                     <p class="card-text mb-1"><b>Equipment:</b> {{ ex.equipment }}</p>
-                    <div class="text-center my-2">
-                        <img src="{{ ex.gif_url }}" alt="{{ ex.exercise_name }}" 
-                             class="img-fluid rounded" 
-                             style="max-height:180px;object-fit:contain;">
-                    </div>
+
                     <form action="{{ url_for('delete_exercise', exercise_id=ex.id) }}" method="POST" class="mt-auto">
-                        <button type="submit" class="btn btn-sm btn-danger w-100">Delete</button>
+                        <button type="submit" class="btn btn-sm btn-danger w-100">🗑 Delete</button>
                     </form>
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="col-12">
-            <div class="alert alert-info">No exercises saved yet.</div>
-        </div>
         {% endfor %}
     </div>
+    {% else %}
+        <div class="alert alert-info">No exercises saved yet. Go add some!</div>
+    {% endif %}
 </div>
 {% endblock %}

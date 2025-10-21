@@ -12,7 +12,7 @@
     <!-- Search by muscle -->
     <form method="POST" class="row g-2 mb-3">
         <div class="col-sm-8">
-            <input type="text" name="muscle" placeholder="Search by muscle (e.g. biceps)" class="form-control">
+            <input type="text" name="muscle" placeholder="Search by muscle (e.g. chest, biceps, push-up)" class="form-control">
         </div>
         <div class="col-sm-4">
             <button type="submit" class="btn btn-primary w-100">Search</button>
@@ -42,32 +42,42 @@
     </form>
 
     {% if exercises %}
-    <h4 class="mb-3">Showing results for <span class="text-primary">"{{ selected }}"</span></h4>
-    <div class="row">
-        {% for ex in exercises %}
-        <div class="col-md-4 mb-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">{{ ex.name }}</h5>
-                    <div class="text-center my-2">
-                        <img src="{{ ex.imageUrl }}" alt="{{ ex.name }}" 
-                             class="img-fluid rounded" 
-                             style="max-height:180px;object-fit:contain;">
+        <h4 class="mb-3">Showing results for <span class="text-primary">"{{ selected }}"</span></h4>
+        <div class="row">
+            {% for ex in exercises %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title text-capitalize">
+                            <a href="https://www.youtube.com/results?search_query={{ ex.name | urlencode }}+exercise"
+                               target="_blank" class="text-decoration-none text-danger">
+                                🎥 {{ ex.name }}
+                            </a>
+                        </h5>
+                        <p class="card-text mb-1"><b>Target:</b> {{ ex.target }}</p>
+                        <p class="card-text mb-1"><b>Equipment:</b> {{ ex.equipment }}</p>
+                        <p class="card-text mb-1"><b>Body Part:</b> {{ ex.bodyPart }}</p>
+                        <p class="card-text mb-1"><b>Difficulty:</b> {{ ex.difficulty or "N/A" }}</p>
+
+                        <form action="{{ url_for('save_exercise', exercise_id=ex.id) }}" method="POST" class="mt-auto">
+                            <input type="hidden" name="name" value="{{ ex.name }}">
+                            <input type="hidden" name="target" value="{{ ex.target }}">
+                            <input type="hidden" name="equipment" value="{{ ex.equipment }}">
+                            <button type="submit" class="btn btn-sm btn-success w-100">
+                                💾 Save to My Plan
+                            </button>
+                        </form>
                     </div>
-                    <form action="{{ url_for('save_exercise', exercise_id=ex.exerciseId) }}" method="POST" class="mt-auto">
-                        <input type="hidden" name="name" value="{{ ex.name }}">
-                        <input type="hidden" name="gifUrl" value="{{ ex.imageUrl }}">
-                        <button type="submit" class="btn btn-sm btn-success w-100">
-                            Save to My Plan
-                        </button>
-                    </form>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
     {% else %}
-    <p class="text-muted">No exercises found yet. Try searching or selecting a body part above.</p>
+        {% if selected %}
+            <p class="text-muted">No exercises found for <strong>{{ selected }}</strong>.</p>
+        {% else %}
+            <p class="text-muted">Search for an exercise or choose a body part to start.</p>
+        {% endif %}
     {% endif %}
 </div>
 {% endblock %}
