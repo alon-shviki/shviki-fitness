@@ -157,7 +157,8 @@ def create_app():
 
     # ------------------ EXERCISES ------------------
 
-    EXERCISE_API_URL = "https://exercisedb-api1.p.rapidapi.com/api/v1"
+    EXERCISE_API_URL = "https://exercisedb.p.rapidapi.com"
+
     EXERCISE_HEADERS = {
         "x-rapidapi-key": os.environ.get("EXERCISE_API_KEY"),
         "x-rapidapi-host": os.environ.get("EXERCISE_API_HOST"),
@@ -176,11 +177,22 @@ def create_app():
             query = request.form.get("muscle") or request.form.get("body_part")
             if query:
                 selected = query
-                url = f"{EXERCISE_API_URL}/exercises/search?search={query}"
-                response = requests.get(url, headers=EXERCISE_HEADERS)
-                if response.status_code == 200:
-                    data = response.json()
-                    exercise_list = data.get("data", [])
+                normalized = query.lower().replace(" ", "-").replace("_", "-")
+
+                endpoints = [
+                    f"/exercises/name/{normalized}",
+                    f"/exercises/bodyPart/{normalized}",
+                    f"/exercises/target/{normalized}"
+                ]
+
+                exercise_list = []
+                for endpoint in endpoints:
+                    response = requests.get(EXERCISE_API_URL + endpoint, headers=EXERCISE_HEADERS)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if isinstance(data, list) and data:
+                            exercise_list = data
+                            break
 
         return render_template("exercises.html", exercises=exercise_list, selected=selected)
 
