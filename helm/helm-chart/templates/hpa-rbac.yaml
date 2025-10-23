@@ -1,0 +1,47 @@
+# Summary: RBAC permissions for the Horizontal Pod Autoscaler
+# Description:
+#   This Role and RoleBinding grant the HorizontalPodAutoscaler (HPA)
+#   permission to access the “scale” subresource on the Flask Deployment.
+#   Without this, you may see the “FailedGetScale Unauthorized” error.
+# 
+#   The permissions allow:
+#     - Read and update scaling information for Deployments
+#     - List and watch Pods for metric collection
+# 
+#   This RBAC applies to the default ServiceAccount in the same namespace.
+
+# --- HPA Role ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hpa-scale-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: autoscaler
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch"]
+
+
+# --- HPA RoleBinding ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hpa-scale-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: autoscaler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hpa-scale-role
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: {{ .Release.Namespace }}
