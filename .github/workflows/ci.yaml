@@ -150,9 +150,10 @@ jobs:
 
       - name: Update Helm values.yaml with new image tag
         run: |
-          echo "Updating Helm image tag in values.yaml..."
-          sed -i "s|tag:.*|tag: ${GIT_HASH}|" helm/helm-chart/values.yaml
-          cat helm/helm-chart/values.yaml | grep tag
+          echo "Updating image tag in values.yaml..."
+          sed -i -E "s|(image:\s*\"alon2810/shvikifitness:).*\"|\1${GIT_HASH}\"|" helm/helm-chart/values.yaml
+          echo "Updated line:"
+          grep 'image:' helm/helm-chart/values.yaml
 
       - name: Commit and Push Updated values.yaml
         if: github.event_name == 'push'
