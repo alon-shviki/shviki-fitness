@@ -1,8 +1,9 @@
 # Summary: Flask Application Deployment
 # Description:
 # Defines how the Flask web application runs in Kubernetes.
-# It configures replicas, container image, ports, resources, and environment variables.
+# It configures replicas, container image, ports, resources, environment variables, and probes.
 # Flask uses a dedicated Secret for SECRET_KEY and another for MySQL credentials.
+# Includes rolling update strategy and graceful shutdown for zero-downtime deployments.
 
 apiVersion: apps/v1
 kind: Deployment
@@ -13,11 +14,21 @@ spec:
   selector:
     matchLabels:
       app: {{ .Values.app.name }}
+
+  # Deployment strategy for smooth upgrades
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allows 1 extra pod during upgrade
+      maxUnavailable: 0  # Ensures no downtime (old pod stays until new is ready)
+
   template:
     metadata:
       labels:
         app: {{ .Values.app.name }}
     spec:
+      terminationGracePeriodSeconds: 30     # Allow Flask 30s to finish ongoing requests before pod stops
+
       containers:
         - name: {{ .Values.app.name }}
           image: "{{ .Values.app.image }}"   # Flask image
@@ -32,6 +43,35 @@ spec:
             limits:
               cpu: 300m
               memory: 256Mi
+
+          # --- Health Probes ---
+          # Liveness Probe: checks if the Flask app is responsive; restarts pod if not.
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.app.port }}
+            initialDelaySeconds: 20  # Wait before first check (gives Flask time to start)
+            periodSeconds: 15        # Check every 15 seconds
+            timeoutSeconds: 5
+            failureThreshold: 3      # Restart pod after 3 failed checks
+
+          # Readiness Probe: controls when the pod receives traffic.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.app.port }}
+            initialDelaySeconds: 10  # Wait before first ready check
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          # --- Graceful Shutdown Handling ---
+          # PreStop hook ensures Flask can finish requests before SIGTERM kills the pod.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "echo 'Graceful shutdown...'; sleep 5"]
 
           env:
             # Flask Secret Key (security token for sessions & cookies)
