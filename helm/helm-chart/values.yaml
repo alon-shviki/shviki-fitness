@@ -30,7 +30,7 @@ mysql:
 
   storage:                               # Persistent volume configuration
     size: 1Gi                            # Volume size for MySQL data
-    class: "standard"                    # Storage class used (Minikube default)
+    class: "gp3-ebs"                    # Storage class for the persistent volume
 
   secretName: shviki-mysql-secret        # Name of the Kubernetes Secret with MySQL credentials
 
