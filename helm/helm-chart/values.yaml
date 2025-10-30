@@ -45,10 +45,9 @@ mysql:
 
 # Service Configuration
 service:
-  type: NodePort                         # Expose Flask externally (NodePort for Minikube)
+  type: LoadBalancer                    # Service type (ClusterIP, NodePort, LoadBalancer)
   port: 80                               # Cluster-internal port
-  nodePort: 30080                        # External port mapped to host machine
-
+  
 # Secret Values (Injected into Kubernetes Secrets)
 secret:
   mysql:
