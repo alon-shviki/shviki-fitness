@@ -231,4 +231,8 @@ def create_app():
             flash("Exercise deleted.", "info")
         return redirect(url_for("my_exercises"))
 
+    @app.route("/health")
+    def health():
+     return {"status": "ok"}, 200
+
     return app

@@ -46,25 +46,28 @@ spec:
 
           # --- Health Probes ---
           # Liveness Probe: checks if the Flask app is responsive; restarts pod if not.
+                    # Liveness Probe: checks if the app is still alive (Gunicorn keeps serving requests)
           livenessProbe:
             httpGet:
-              path: /
+              path: /health              # changed from '/' → faster and lightweight endpoint
               port: {{ .Values.app.port }}
-            initialDelaySeconds: 20  # Wait before first check (gives Flask time to start)
-            periodSeconds: 15        # Check every 15 seconds
+            initialDelaySeconds: 40      # wait longer before first check (gives DB + Gunicorn time)
+            periodSeconds: 15            # check every 15s
             timeoutSeconds: 5
-            failureThreshold: 3      # Restart pod after 3 failed checks
+            failureThreshold: 5          # restart after 5 consecutive fails (less aggressive)
 
           # Readiness Probe: controls when the pod receives traffic.
+          # It ensures the app only gets requests when it can serve them.
           readinessProbe:
             httpGet:
-              path: /
+              path: /health              # changed from '/' → faster endpoint response
               port: {{ .Values.app.port }}
-            initialDelaySeconds: 10  # Wait before first ready check
-            periodSeconds: 10
+            initialDelaySeconds: 30      # wait 30s before first readiness check (for DB warmup)
+            periodSeconds: 10            # check every 10s
             timeoutSeconds: 3
             successThreshold: 1
-            failureThreshold: 3
+            failureThreshold: 10         # tolerate multiple slow responses before marking unready
+
 
           # --- Graceful Shutdown Handling ---
           # PreStop hook ensures Flask can finish requests before SIGTERM kills the pod.
