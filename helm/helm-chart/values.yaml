@@ -8,7 +8,7 @@
 # Flask Application Configuration
 app:
   name: shviki-app                       # Logical name for the Flask Deployment
-  image: "alon2810/shvikifitness:3a08b8d" # Docker image for your Flask app
+  image: "alon2810/shvikifitness:1d08632" # Docker image for your Flask app
   replicas: 1                            # Number of Flask pods (can scale via HPA)
   port: 5000                             # Port Flask listens on inside the container
 
