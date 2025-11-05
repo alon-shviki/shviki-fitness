@@ -8,16 +8,17 @@
 #
 # This Service provides the entry point for users to access the ShvikiFitness web app.
 
-# Flask Application Service Configuration
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Chart.Name }}-service              # Service name for the Flask web app
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-attributes: deletion_protection.enabled=false
 spec:
-  type: {{ .Values.service.type }}             # Service type (NodePort, ClusterIP, or LoadBalancer)
+  type: {{ .Values.service.type }}             # NodePort, ClusterIP, or LoadBalancer
   selector:
     app: {{ .Values.app.name }}                # Matches pods labeled with the Flask app name
   ports:
-    - port: 80                                 # Service port exposed inside the cluster (HTTP)
-      targetPort: {{ .Values.app.port }}       # Container port Flask listens on (from values.yaml)
-      protocol: TCP                            # Protocol used for the web service
+    - port: 80
+      targetPort: {{ .Values.app.port }}
+      protocol: TCP
