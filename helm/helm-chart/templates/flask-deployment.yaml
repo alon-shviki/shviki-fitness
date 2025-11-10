@@ -29,6 +29,12 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30     # Allow Flask 30s to finish ongoing requests before pod stops
 
+      # --- CHANGE 1: ASSIGN THE SERVICE ACCOUNT ---
+      # This gives your Flask pod the IAM role to let 
+      # the SecretStore read its identity
+      serviceAccountName: shviki-fitness-sa
+      # --- END OF CHANGE 1 ---
+
       containers:
         - name: {{ .Values.app.name }}
           image: "{{ .Values.app.image }}"   # Flask image
@@ -103,8 +109,14 @@ spec:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_PASSWORD
 
+            # --- CHANGE 2: FIX THE HARDCODED API KEY ---
             # RapidAPI credentials (for Exercise API)
             - name: EXERCISE_API_KEY
-              value: "a7e283e943msh9ef1e13e34a30a1p106ce1jsn207b35aa2876"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.name }}-secret # "shviki-app-secret"
+                  key: EXERCISE_API_KEY
+            # --- END OF CHANGE 2 ---
+            
             - name: EXERCISE_API_HOST
               value: "exercisedb.p.rapidapi.com"

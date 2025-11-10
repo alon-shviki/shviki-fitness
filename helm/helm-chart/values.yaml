@@ -15,51 +15,38 @@ app:
   # Resource allocations for the Flask container
   resources:
     requests:
-      cpu: 100m        # Minimum guaranteed CPU (0.1 core)
-      memory: 128Mi    # Minimum guaranteed memory
+      cpu: 100m
+      memory: 128Mi
     limits:
-      cpu: 300m        # Maximum CPU before throttling
-      memory: 256Mi    # Maximum memory limit
+      cpu: 300m
+      memory: 256Mi
 
 # MySQL Database Configuration
 mysql:
-  image: "mysql:8.0"                     # MySQL container image
-  database: "shviki_db"                  # Default database name
-  user: "shviki"                         # Application database username
-  port: 3306                             # MySQL container port
-
-  storage:                               # Persistent volume configuration
-    size: 1Gi                            # Volume size for MySQL data
-    class: "gp3-ebs"                    # Storage class for the persistent volume
-
-  secretName: shviki-mysql-secret        # Name of the Kubernetes Secret with MySQL credentials
-
-  # Resource allocations for the MySQL container
+  image: "mysql:8.0"
+  database: "shviki_db"
+  user: "shviki"
+  port: 3306
+  storage:
+    size: 1Gi
+    class: "gp3-ebs"
+  secretName: shviki-mysql-secret
   resources:
     requests:
-      cpu: 100m        # Minimum guaranteed CPU for MySQL
-      memory: 256Mi    # Minimum guaranteed memory
+      cpu: 100m
+      memory: 256Mi
     limits:
-      cpu: 500m        # Maximum CPU for MySQL pod
-      memory: 512Mi    # Maximum memory before throttling
+      cpu: 500m
+      memory: 512Mi
 
 # Service Configuration
 service:
-  type: LoadBalancer                    # Service type (ClusterIP, NodePort, LoadBalancer)
-  port: 80                               # Cluster-internal port
+  type: LoadBalancer
+  port: 80
   
-# Secret Values (Injected into Kubernetes Secrets)
-secret:
-  mysql:
-    rootPassword: "root123"              # Root password for MySQL
-    userPassword: "shviki123"            # Application user password
-
-  app:
-    secretKey: "replace-with-generated-key"  # Flask SECRET_KEY used for sessions, cookies, CSRF tokens
-
 # Autoscaling Configuration
 autoscaling:
-  enabled: true                          # Enable the Horizontal Pod Autoscaler
-  minReplicas: 1                         # Minimum Flask replicas
-  maxReplicas: 3                         # Maximum Flask replicas
-  targetCPUUtilizationPercentage: 70     # Target CPU utilization threshold for scaling
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
