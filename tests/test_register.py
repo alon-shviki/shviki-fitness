@@ -1,6 +1,16 @@
+# Summary: User Registration Tests
+# Description:
+# Validates the registration workflow, including successful account creation
+# and preventing duplicate email registration. Ensures proper validation logic.
+
 # tests/test_register.py
+
 def test_register_success(test_client):
     """Register a new user successfully."""
+
+    # ---------------------------------------
+    # Attempt valid registration
+    # ---------------------------------------
     response = test_client.post("/register", data={
         "first_name": "Alon",
         "last_name": "Shviki",
@@ -12,14 +22,20 @@ def test_register_success(test_client):
         "subscription": "Monthly"
     }, follow_redirects=True)
 
+    # ---------------------------------------
+    # Validate successful redirect and login
+    # ---------------------------------------
     assert response.status_code == 200
     assert b"Welcome" in response.data or b"Home" in response.data
 
 
 
 def test_register_duplicate_email(test_client):
-    """Block registration with an existing email."""
-    # First registration
+    """Block registration when email already exists."""
+
+    # ---------------------------------------
+    # First registration (baseline)
+    # ---------------------------------------
     test_client.post("/register", data={
         "first_name": "Dana",
         "last_name": "Fit",
@@ -31,7 +47,9 @@ def test_register_duplicate_email(test_client):
         "subscription": "Monthly"
     })
 
-    # Second registration with same email
+    # ---------------------------------------
+    # Attempt 2nd registration using same email
+    # ---------------------------------------
     response = test_client.post("/register", data={
         "first_name": "Another",
         "last_name": "User",
@@ -43,4 +61,7 @@ def test_register_duplicate_email(test_client):
         "subscription": "Monthly"
     }, follow_redirects=True)
 
+    # ---------------------------------------
+    # Validate expected rejection
+    # ---------------------------------------
     assert b"Email already registered" in response.data

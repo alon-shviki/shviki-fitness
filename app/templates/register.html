@@ -1,31 +1,48 @@
+{#
+Summary: User Registration Page
+Description:
+This page provides the registration form for new ShvikiFitness users. 
+It collects personal details such as name, national ID, email, password,
+age, gender, and subscription type before creating a new account.
+#}
+
 {% extends "base.html" %}
 {% block content %}
+
+  <!-- Registration Form -->
   <h2 class="mb-3">Register</h2>
   <form method="POST" class="row g-3">
+
     <div class="col-md-6">
       <label class="form-label">First Name</label>
       <input class="form-control" name="first_name" required>
     </div>
+
     <div class="col-md-6">
       <label class="form-label">Last Name</label>
       <input class="form-control" name="last_name" required>
     </div>
+
     <div class="col-md-6">
       <label class="form-label">National ID</label>
       <input class="form-control" name="national_id" required>
     </div>
+
     <div class="col-md-6">
       <label class="form-label">Email</label>
       <input class="form-control" type="email" name="email" required>
     </div>
+
     <div class="col-md-6">
       <label class="form-label">Password</label>
       <input class="form-control" type="password" name="password" required>
     </div>
+
     <div class="col-md-3">
       <label class="form-label">Age</label>
       <input class="form-control" type="number" name="age" required>
     </div>
+
     <div class="col-md-3">
       <label class="form-label">Gender</label>
       <select class="form-select" name="gender">
@@ -33,6 +50,7 @@
         <option value="Female">Female</option>
       </select>
     </div>
+
     <div class="col-md-6">
       <label class="form-label">Subscription</label>
       <select class="form-select" name="subscription">
@@ -40,8 +58,11 @@
         <option value="Premium">Premium</option>
       </select>
     </div>
+
     <div class="col-12">
       <button type="submit" class="btn btn-primary">Register</button>
     </div>
+
   </form>
+
 {% endblock %}

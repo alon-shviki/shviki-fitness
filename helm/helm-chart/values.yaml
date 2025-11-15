@@ -1,18 +1,19 @@
 # Summary: Central Configuration File for Helm Chart
 # Description:
-# This file serves as the central configuration point for the entire Helm chart.
-# It defines all key parameters—such as image, ports, secrets, resources, storage, and autoscaling—
-# used across all templates. Helm dynamically injects these values into your manifests at deployment time,
-# making the setup modular, reusable, and easy to maintain.
+# Defines all configurable settings for the ShvikiFitness Helm chart.
+# Parameters here control image versions, replicas, resources, database settings,
+# service exposure, storage, and autoscaling. These values are injected into all
+# templates to keep the deployment modular and maintainable.
 
-# Flask Application Configuration
+# -----------------------------
+# Flask Application Parameters
+# -----------------------------
 app:
-  name: shviki-app                       # Logical name for the Flask Deployment
-  image: "alon2810/shvikifitness:438d11d" # Docker image for your Flask app
-  replicas: 1                            # Number of Flask pods (can scale via HPA)
-  port: 5000                             # Port Flask listens on inside the container
+  name: shviki-app                                 # Logical name for Flask Deployment
+  image: "alon2810/shvikifitness:438d11d"          # Flask Docker image
+  replicas: 1                                       # Default replica count (HPA may override)
+  port: 5000                                        # Internal container port
 
-  # Resource allocations for the Flask container
   resources:
     requests:
       cpu: 100m
@@ -21,16 +22,21 @@ app:
       cpu: 300m
       memory: 256Mi
 
+# -----------------------------
 # MySQL Database Configuration
+# -----------------------------
 mysql:
-  image: "mysql:8.0"
-  database: "shviki_db"
-  user: "shviki"
-  port: 3306
+  image: "mysql:8.0"                                # MySQL container image
+  database: "shviki_db"                             # Default database name
+  user: "shviki"                                    # Application DB user
+  port: 3306                                        # MySQL listening port
+
   storage:
-    size: 1Gi
-    class: "gp3-ebs"
-  secretName: shviki-mysql-secret
+    size: 1Gi                                       # PVC requested storage size
+    class: "gp3-ebs"                                # StorageClass to use for PVC
+
+  secretName: shviki-mysql-secret                   # Secret holding MySQL credentials
+
   resources:
     requests:
       cpu: 100m
@@ -39,14 +45,18 @@ mysql:
       cpu: 500m
       memory: 512Mi
 
-# Service Configuration
+# -----------------------------
+# Service Exposure
+# -----------------------------
 service:
-  type: LoadBalancer
-  port: 80
-  
-# Autoscaling Configuration
+  type: LoadBalancer                                # Can be ClusterIP, NodePort, or LoadBalancer
+  port: 80                                          # External service port
+
+# -----------------------------
+# Autoscaling (HPA) Settings
+# -----------------------------
 autoscaling:
-  enabled: true
+  enabled: true                                     # Enable or disable HPA
   minReplicas: 1
   maxReplicas: 3
-  targetCPUUtilizationPercentage: 70
+  targetCPUUtilizationPercentage: 70                # CPU threshold for scaling

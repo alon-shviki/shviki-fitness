@@ -1,47 +1,44 @@
 # Summary: Flask Application Deployment
 # Description:
-# Defines how the Flask web application runs in Kubernetes.
-# It configures replicas, container image, ports, resources, environment variables, and probes.
-# Flask uses a dedicated Secret for SECRET_KEY and another for MySQL credentials.
-# Includes rolling update strategy and graceful shutdown for zero-downtime deployments.
+# Defines the Kubernetes Deployment for the Flask web application. 
+# Configures replica count, rolling update behavior, resource limits,
+# environment variables, service account, and health probes.
+# Application secrets are loaded from Kubernetes Secrets created by External Secrets.
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Values.app.name }}
 spec:
-  replicas: {{ .Values.app.replicas }}      # Number of pods
+  replicas: {{ .Values.app.replicas }}      # Desired number of pods
   selector:
     matchLabels:
       app: {{ .Values.app.name }}
 
-  # Deployment strategy for smooth upgrades
+  # Rolling update strategy for zero-downtime deployments
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # Allows 1 extra pod during upgrade
-      maxUnavailable: 0  # Ensures no downtime (old pod stays until new is ready)
+      maxSurge: 1        # Allow one extra pod during rollout
+      maxUnavailable: 0  # Ensure all pods stay up until new ones are ready
 
   template:
     metadata:
       labels:
         app: {{ .Values.app.name }}
     spec:
-      terminationGracePeriodSeconds: 30     # Allow Flask 30s to finish ongoing requests before pod stops
+      terminationGracePeriodSeconds: 30     # Give the app time to finish active requests
 
-      # --- CHANGE 1: ASSIGN THE SERVICE ACCOUNT ---
-      # This gives your Flask pod the IAM role to let 
-      # the SecretStore read its identity
+      # Service account used for IAM role binding through IRSA
       serviceAccountName: shviki-fitness-sa
-      # --- END OF CHANGE 1 ---
 
       containers:
         - name: {{ .Values.app.name }}
-          image: "{{ .Values.app.image }}"   # Flask image
+          image: "{{ .Values.app.image }}"   # Container image for Flask
           ports:
             - containerPort: {{ .Values.app.port }}
 
-          # Resource allocation
+          # Resource requests and limits
           resources:
             requests:
               cpu: 100m
@@ -50,47 +47,42 @@ spec:
               cpu: 300m
               memory: 256Mi
 
-          # --- Health Probes ---
-          # Liveness Probe: checks if the Flask app is responsive; restarts pod if not.
-                    # Liveness Probe: checks if the app is still alive (Gunicorn keeps serving requests)
+          # Liveness probe checks if Flask application is responding
           livenessProbe:
             httpGet:
-              path: /health              # changed from '/' → faster and lightweight endpoint
+              path: /health
               port: {{ .Values.app.port }}
-            initialDelaySeconds: 40      # wait longer before first check (gives DB + Gunicorn time)
-            periodSeconds: 15            # check every 15s
+            initialDelaySeconds: 40      # Allow database and Gunicorn startup
+            periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 5          # restart after 5 consecutive fails (less aggressive)
+            failureThreshold: 5
 
-          # Readiness Probe: controls when the pod receives traffic.
-          # It ensures the app only gets requests when it can serve them.
+          # Readiness probe controls when the app receives traffic
           readinessProbe:
             httpGet:
-              path: /health              # changed from '/' → faster endpoint response
+              path: /health
               port: {{ .Values.app.port }}
-            initialDelaySeconds: 30      # wait 30s before first readiness check (for DB warmup)
-            periodSeconds: 10            # check every 10s
+            initialDelaySeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-            failureThreshold: 10         # tolerate multiple slow responses before marking unready
+            failureThreshold: 10
 
-
-          # --- Graceful Shutdown Handling ---
-          # PreStop hook ensures Flask can finish requests before SIGTERM kills the pod.
+          # PreStop lifecycle hook for graceful shutdown
           lifecycle:
             preStop:
               exec:
                 command: ["/bin/sh", "-c", "echo 'Graceful shutdown...'; sleep 5"]
 
           env:
-            # Flask Secret Key (security token for sessions & cookies)
+            # Secret key for Flask session encryption
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.app.name }}-secret
                   key: SECRET_KEY
 
-            # MySQL connection details (fetched from MySQL Secret)
+            # MySQL connection environment variables
             - name: DB_HOST
               value: "{{ .Chart.Name }}-mysql"
             - name: DB_NAME
@@ -109,14 +101,12 @@ spec:
                   name: {{ .Values.mysql.secretName }}
                   key: MYSQL_PASSWORD
 
-            # --- CHANGE 2: FIX THE HARDCODED API KEY ---
-            # RapidAPI credentials (for Exercise API)
+            # Exercise API credentials
             - name: EXERCISE_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.app.name }}-secret # "shviki-app-secret"
+                  name: {{ .Values.app.name }}-secret
                   key: EXERCISE_API_KEY
-            # --- END OF CHANGE 2 ---
-            
+
             - name: EXERCISE_API_HOST
               value: "exercisedb.p.rapidapi.com"

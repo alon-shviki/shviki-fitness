@@ -1,8 +1,17 @@
-version: "3.9"
+# Summary: Docker Compose for Local Development
+# Description:
+# This file defines the local development stack for ShvikiFitness.
+# It runs MySQL as a service with persistent storage and launches the Flask app
+# using the pre-built Docker image. MySQL includes a health check so the Flask app
+# starts only after the database is ready.
 
 services:
+
+  # ----------------------------
+  # MySQL Database Service
+  # ----------------------------
   db:
-    image: mysql:8.0
+    image: mysql:5.7
     restart: always
     environment:
       MYSQL_DATABASE: shviki_db
@@ -14,27 +23,46 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
+  # ----------------------------
+  # Flask Application Service
+  # ----------------------------
   app:
-    image: alon2810/shvikifitness:latest   
+    image: alon2810/shvikifitness:438d11d
     restart: always
     ports:
       - "5000:5000"
+
+    # App waits until MySQL is healthy (avoids connection errors)
     depends_on:
       db:
         condition: service_healthy
+
+    # Load secrets & environment variables
     env_file: .env
+
     environment:
       FLASK_ENV: production
       SECRET_KEY: super-secret-key
-      EXERCISE_API_KEY: a7e283e943msh9ef1e13e34a30a1p106ce1jsn207b35aa2876
-      EXERCISE_API_HOST: exercisedb-api1.p.rapidapi.com
+
+      # API credentials for ExerciseDB
+      EXERCISE_API_KEY: "a7e283e943msh9ef1e13e34a30a1p106ce1jsn207b35aa2876"
+      EXERCISE_API_HOST: "exercisedb.p.rapidapi.com"
+
+      # Database configuration
+      DB_HOST: db
+      DB_NAME: shviki_db
+      DB_USER: shviki_user
+      DB_PASSWORD: shviki_pass
+
+      # SQLAlchemy connection URI
       SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@db:3306/shviki_db
 
+# Persistent MySQL storage
 volumes:
   dbdata:

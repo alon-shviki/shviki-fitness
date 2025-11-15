@@ -1,16 +1,26 @@
+{#
+Summary: User Home Dashboard
+Description:
+This page displays the logged-in user's dashboard. It includes quick navigation 
+buttons for exercises and saved exercises and shows a table of available gym classes 
+with details such as time, duration, coach, and level.
+#}
+
 {% extends "base.html" %}
 {% block content %}
+
 <div class="container" style="max-width:900px;margin-top:20px">
 
+  <!-- Welcome Header -->
   <h2 class="mb-3">Welcome, {{ current_user.first_name if current_user else "User" }}</h2>
 
-  <!-- Quick buttons -->
+  <!-- Quick Navigation Buttons -->
   <div class="mb-3">
     <a href="{{ url_for('exercises') }}" class="btn btn-primary me-2">Exercises</a>
     <a href="/my_exercises" class="btn btn-secondary">Saved Exercises</a>
   </div>
 
-  <!-- Classes table -->
+  <!-- Gym Classes Table -->
   <h4 class="mb-2">Available Gym Classes</h4>
   <div class="table-responsive">
     <table class="table table-striped table-bordered">
@@ -27,6 +37,7 @@
         </tr>
       </thead>
       <tbody>
+
         {% for c in classes %}
         <tr>
           <td>{{ c.name }}</td>
@@ -43,8 +54,11 @@
           <td colspan="8" class="text-center text-muted">No classes available yet.</td>
         </tr>
         {% endfor %}
+
       </tbody>
     </table>
   </div>
+
 </div>
+
 {% endblock %}

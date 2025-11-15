@@ -1,14 +1,15 @@
-# Summary: Configuration Map for Flask Application
+# Summary: ConfigMap for Flask Application
 # Description:
-# This ConfigMap holds non-sensitive environment variables for the Flask container.
-# It defines application-level settings such as Flask environment and debug mode.
-# Sensitive data (like SECRET_KEY) is stored in a separate Kubernetes Secret for security.
+# This ConfigMap stores non-sensitive environment variables used by the Flask app.
+# Application settings such as environment mode and debug behavior are defined here.
+# Sensitive values (for example SECRET_KEY) must be placed in a Kubernetes Secret.
 
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.app.name }}-config
+
 data:
-  FLASK_ENV: "production"          # Flask runtime mode
-  DEBUG: "false"                   # Enable or disable debug mode
-  APP_NAME: "{{ .Values.app.name }}"  # Reference name for the app
+  FLASK_ENV: "production"                 # Flask environment mode
+  DEBUG: "false"                          # Debug toggle for runtime behavior
+  APP_NAME: "{{ .Values.app.name }}"      # Application reference name

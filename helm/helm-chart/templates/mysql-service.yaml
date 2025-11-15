@@ -1,17 +1,16 @@
 # Summary: MySQL Service Configuration
-# Description: 
-# This Service exposes the MySQL StatefulSet internally to other components within the cluster (such as the Flask application).
-# Using a ClusterIP ensures that MySQL is not exposed externally, keeping the database isolated and secure inside the Kubernetes network.
+# Description:
+# Provides internal network access to the MySQL StatefulSet using a ClusterIP Service.
+# This keeps the database accessible only within the cluster and prevents external exposure.
 
-# MySQL Service Configuration
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Chart.Name }}-mysql               # Service name for internal DNS access (e.g. mysql.default.svc)
+  name: {{ .Chart.Name }}-mysql                   # Internal DNS name for MySQL
 spec:
-  type: ClusterIP                             # Internal-only service (accessible within the cluster)
+  type: ClusterIP                                 # Internal-only service
   selector:
-    app: mysql                                # Matches pods labeled "app: mysql"
+    app: mysql                                    # Target pods with label: app=mysql
   ports:
-    - port: 3306                              # Service port for MySQL connections
-      targetPort: {{ .Values.mysql.port }}    # Container port (defined in values.yaml)
+    - port: 3306                                  # MySQL service port
+      targetPort: {{ .Values.mysql.port }}        # MySQL container port

@@ -1,3 +1,12 @@
+# Summary: Login Tests for ShvikiFitness
+# Description:
+# Contains tests for both invalid and valid login scenarios.
+# Ensures authentication logic works correctly and responds appropriately
+# to wrong credentials and successful login attempts.
+
+# ---------------------------------------
+# Test: Invalid Login Attempt
+# ---------------------------------------
 def test_login_invalid_user(test_client):
     """Try logging in with invalid credentials."""
     response = test_client.post("/login", data={
@@ -8,9 +17,13 @@ def test_login_invalid_user(test_client):
     assert b"Invalid" in response.data or response.status_code in [400, 200]
 
 
+# ---------------------------------------
+# Test: Valid Login Flow
+# ---------------------------------------
 # tests/test_login.py
 def test_login_success(test_client):
     """Register and then log in successfully."""
+
     # Register a test user
     test_client.post("/register", data={
         "first_name": "Test",
@@ -23,7 +36,7 @@ def test_login_success(test_client):
         "subscription": "Trial"
     })
 
-    # Then log in
+    # Login using the new account
     response = test_client.post("/login", data={
         "email": "test@example.com",
         "password": "1234"
@@ -31,4 +44,3 @@ def test_login_success(test_client):
 
     assert response.status_code == 200
     assert b"Welcome" in response.data or b"Home" in response.data
-

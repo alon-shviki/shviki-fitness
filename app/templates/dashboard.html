@@ -1,7 +1,19 @@
+{# 
+Summary: Admin Dashboard Page
+Description:
+This page displays the admin dashboard for ShvikiFitness. It shows the total number
+of registered users and renders a table with user details including name, ID, email,
+age, gender, subscription type, and join date.
+#}
+
 {% extends "base.html" %}
 {% block content %}
+
+  <!-- Dashboard Header + Total Members Count -->
   <h2 class="mb-3">Dashboard</h2>
   <p class="mb-3">Total Members: {{ users|length }}</p>
+
+  <!-- User Table -->
   <div class="table-responsive">
     <table class="table table-striped">
       <thead class="table-dark">
@@ -17,6 +29,7 @@
         </tr>
       </thead>
       <tbody>
+
         {% for user in users %}
         <tr>
           <td>{{ user.first_name }}</td>
@@ -35,7 +48,9 @@
           </td>
         </tr>
         {% endfor %}
+
       </tbody>
     </table>
   </div>
+
 {% endblock %}

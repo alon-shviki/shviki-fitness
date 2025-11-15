@@ -1,3 +1,11 @@
+# Summary: CI Pipeline for Testing, Building, and Deployment Image Updates
+# Description:
+# This workflow runs the full CI pipeline for ShvikiFitness:
+# - Unit tests with a MySQL service container
+# - Integration tests after unit tests succeed
+# - Docker image build and push using the Git commit hash
+# - Automatic update of the Helm chart image tag for GitOps deployment
+
 name: Tests and Build
 
 on:
@@ -9,9 +17,12 @@ permissions:
   contents: write
 
 jobs:
-  # ========================
-  # UNIT TESTS
-  # ========================
+
+  # ---------------------------------------------------------
+  # Unit Test Job
+  # Runs Python unit tests using a MySQL service container.
+  # Validates core logic before integration testing begins.
+  # ---------------------------------------------------------
   unit-tests:
     name: Run Unit Tests
     runs-on: ubuntu-latest
@@ -34,16 +45,21 @@ jobs:
           --health-start-period=30s
 
     steps:
+      # Pull the repository code
       - uses: actions/checkout@v4
+
+      # Configure Python version
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # Install dependencies from requirements.txt
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Ensure MySQL service container is ready
       - name: Wait for MySQL to be ready
         run: |
           for i in {1..30}; do
@@ -52,6 +68,7 @@ jobs:
             sleep 2
           done
 
+      # Execute the unit test suite
       - name: Run Unit Tests
         env:
           DB_HOST: 127.0.0.1
@@ -61,13 +78,14 @@ jobs:
           DB_NAME: shviki_db
           FLASK_ENV: testing
         run: |
-          echo "Running unit tests..."
           pytest -v --disable-warnings --maxfail=1 --ignore=tests/test_integration.py
 
 
-  # ========================
-  #  INTEGRATION TESTS
-  # ========================
+  # ---------------------------------------------------------
+  # Integration Test Job
+  # Runs full integration tests against a MySQL container.
+  # Depends on successful unit tests.
+  # ---------------------------------------------------------
   integration-tests:
     name: Run Integration Tests
     runs-on: ubuntu-latest
@@ -91,16 +109,21 @@ jobs:
           --health-start-period=30s
 
     steps:
+      # Pull project code
       - uses: actions/checkout@v4
+
+      # Configure Python runtime
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # Install Python packages
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Wait for MySQL to become ready
       - name: Wait for MySQL to be ready
         run: |
           for i in {1..30}; do
@@ -109,6 +132,7 @@ jobs:
             sleep 2
           done
 
+      # Execute integration tests
       - name: Run Integration Tests
         env:
           DB_HOST: 127.0.0.1
@@ -118,13 +142,14 @@ jobs:
           DB_NAME: shviki_db
           FLASK_ENV: testing
         run: |
-          echo "Running integration tests..."
           pytest -v tests/test_integration.py --disable-warnings
 
 
-  # ========================
-  # BUILD & PUSH DOCKER IMAGE
-  # ========================
+  # ---------------------------------------------------------
+  # Docker Build and Push
+  # Builds the Docker image and tags it with the Git hash.
+  # Pushes the image to Docker Hub.
+  # ---------------------------------------------------------
   docker-build:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
@@ -133,16 +158,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Save current Git commit short hash
       - name: Set Git Commit Hash
         id: vars
         run: echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+      # Authenticate to Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Build and push the application image
       - name: Build and Push Docker Image (Git Hash Tag Only)
         uses: docker/build-push-action@v6
         with:
@@ -151,13 +179,16 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/shvikifitness:${{ env.GIT_HASH }}
 
+      # Store tag for the next job
       - name: Save tag for next job
         run: echo "GIT_HASH=${GIT_HASH}" >> $GITHUB_OUTPUT
 
 
-  # ========================
-  # UPDATE HELM VALUES
-  # ========================
+  # ---------------------------------------------------------
+  # Helm Chart Update
+  # Updates the Helm values.yaml image tag and commits the change.
+  # Triggers ArgoCD to deploy the new image.
+  # ---------------------------------------------------------
   helm-update:
     name: Update Helm Chart values.yaml
     runs-on: ubuntu-latest
@@ -166,16 +197,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Retrieve latest Git commit hash
       - name: Retrieve Git Commit Hash
         run: echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+      # Update the Helm image tag
       - name: Update Helm values.yaml with new image tag
         run: |
-          echo "Updating image tag in values.yaml..."
           sed -i -E "s|(image:\s*\"alon2810/shvikifitness:).*\"|\1${GIT_HASH}\"|" helm/helm-chart/values.yaml
-          echo "Updated line:"
           grep 'image:' helm/helm-chart/values.yaml
 
+      # Commit updated Helm chart
       - name: Commit and Push Updated values.yaml
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

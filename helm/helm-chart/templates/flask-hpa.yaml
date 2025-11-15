@@ -1,36 +1,35 @@
 # Summary: Horizontal Pod Autoscaler (HPA)
 # Description:
-# This file defines the autoscaling policy for the Flask application in the ShvikiFitness project.
-# The HPA automatically adjusts the number of running Flask pods based on CPU utilization.
-# It uses metrics from the Kubernetes metrics-server to determine when to scale up or down.
+# Configures autoscaling for the Flask Deployment based on CPU usage.
+# The HPA monitors average CPU utilization and adjusts the number of replicas
+# to maintain efficient performance and resource usage.
 
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ .Values.app.name }}-hpa
+
 spec:
-  # Target resource to scale — links this HPA to the Flask Deployment
+  # Target workload to scale (Flask Deployment)
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Values.app.name }}
 
-  # Minimum and maximum number of Flask pods allowed
+  # Allowed number of pods managed by the HPA
   minReplicas: 1
   maxReplicas: 3
 
-  # Metrics definition — scale based on average CPU usage across pods
+  # Scale based on average CPU utilization across all pods
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
-          type: Utilization       # Use CPU utilization percentage
-          averageUtilization: 70  # Scale up when CPU usage exceeds 70%
+          type: Utilization
+          averageUtilization: 70       # Scale up if average CPU > 70%
 
-  # Custom scaling behavior
   behavior:
     scaleDown:
-      # Prevent rapid scale-down to avoid instability
-      # Default is 300 seconds (5 minutes) — reduced here to 60 seconds for faster reaction
+      # Limit how quickly pods are removed to prevent instability
       stabilizationWindowSeconds: 60

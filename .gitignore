@@ -1,2 +1,12 @@
 venv/
+.env# Summary: Git Ignore Rules for Local Environment and Virtual Environment
+# Description:
+# Ensures that sensitive local configuration files and Python virtual environments
+# are not committed to the repository. These files are machine-specific and should
+# never be tracked in version control.
+
+# Python virtual environment folder
+venv/
+
+# Local environment variables file
 .env

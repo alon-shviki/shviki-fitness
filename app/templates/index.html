@@ -1,9 +1,20 @@
+{#
+Summary: Homepage (Landing Page)
+Description:
+This page serves as the public landing page for ShvikiFitness.
+It welcomes visitors and provides quick access to Register and Login actions.
+#}
+
 {% extends "base.html" %}
 {% block content %}
+
+  <!-- Landing Page Content -->
   <div class="text-center p-5">
     <h1 class="mb-4">Welcome to ShvikiFitness</h1>
     <p class="lead">Get fit, stay healthy!</p>
+
     <a href="{{ url_for('register') }}" class="btn btn-primary m-2">Register</a>
     <a href="{{ url_for('login') }}" class="btn btn-secondary m-2">Login</a>
   </div>
+
 {% endblock %}

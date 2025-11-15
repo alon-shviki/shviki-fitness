@@ -1,3 +1,9 @@
+# Summary: Flask Application Initialization and Routes
+# Description:
+# This file initializes the Flask app, configures the database, and defines all
+# application routes including authentication, dashboard, exercise search API
+# integration, saved exercises management, and health check endpoints.
+
 from flask import Flask, render_template, request, redirect, session, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,33 +17,42 @@ import requests
 db = SQLAlchemy()
 
 
+
+# Attempts to connect to the MySQL database multiple times before failing.
 def connect_with_retry(app, retries=10, delay=3):
     """Try to connect to MySQL several times before giving up."""
     for attempt in range(retries):
         try:
             with app.app_context():
                 db.engine.connect()
-            print("✅ Database connection established.")
+            print("Database connection established.")
             return True
         except OperationalError:
-            print(f"⏳ Database not ready, retrying in {delay}s... ({attempt + 1}/{retries})")
+            print(f"Database not ready, retrying in {delay}s... ({attempt + 1}/{retries})")
             time.sleep(delay)
-    raise RuntimeError("❌ Could not connect to database after several attempts.")
+    raise RuntimeError("Could not connect to database after several attempts.")
 
 
+# Summary: Application Factory
+# Description:
+# Creates the Flask application instance, configures database settings,
+# initializes SQLAlchemy, creates tables, and registers all routes.
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
 
-    # --- Database Configuration ---
+    # --------- Database Configuration --------- #
     db_user = os.environ.get("DB_USER", "shviki_user")
     db_pass = os.environ.get("DB_PASSWORD", "shviki_pass")
     db_host = os.environ.get("DB_HOST", "shviki-fitness-mysql")
     db_name = os.environ.get("DB_NAME", "shviki_db")
 
     if db_user and db_pass and db_host and db_name:
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:3306/{db_name}"
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:3306/{db_name}"
+        )
     else:
+        # Fallback local SQLite DB
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///shviki.db"
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -48,6 +63,7 @@ def create_app():
         "max_overflow": 10,
     }
 
+    # Initialize database with app context
     db.init_app(app)
 
     from .models import User, UserExercise
@@ -57,11 +73,12 @@ def create_app():
 
     # ---------------- ROUTES ---------------- #
 
+    # Landing Page
     @app.route("/")
     def index():
         return render_template("index.html")
 
-    # ---------- Register ---------- #
+    # --------- Register --------- #
     @app.route("/register", methods=["GET", "POST"])
     def register():
         if request.method == "POST":
@@ -87,9 +104,10 @@ def create_app():
             session["user_id"] = user.id
             session["role"] = user.role
             return redirect(url_for("user_home"))
+
         return render_template("register.html")
 
-    # ---------- Login ---------- #
+    # --------- Login --------- #
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
@@ -98,15 +116,18 @@ def create_app():
                 session["user_id"] = user.id
                 session["role"] = user.role
                 return redirect(url_for("dashboard" if user.role == "admin" else "user_home"))
+
             flash("Invalid email or password", "danger")
         return render_template("login.html")
 
-    # ---------- User Home ---------- #
+    # --------- User Home --------- #
     @app.route("/home")
     def user_home():
         if "user_id" not in session:
             flash("Please log in first.", "danger")
             return redirect(url_for("login"))
+
+        # Sample class list (static)
         classes = [
             {
                 "name": "HIIT 45",
@@ -131,24 +152,26 @@ def create_app():
         ]
         return render_template("user_home.html", classes=classes)
 
-    # ---------- Dashboard ---------- #
+    # --------- Admin Dashboard --------- #
     @app.route("/dashboard")
     def dashboard():
         if "user_id" not in session:
             return redirect(url_for("login"))
+
         if session["role"] != "admin":
             flash("Access denied.", "danger")
             return redirect(url_for("user_home"))
+
         users = User.query.all()
         return render_template("dashboard.html", users=users)
 
-    # ---------- Logout ---------- #
+    # --------- Logout --------- #
     @app.route("/logout")
     def logout():
         session.clear()
         return redirect(url_for("index"))
 
-    # ---------- Exercise API ---------- #
+    # --------- Exercise API Integration --------- #
     EXERCISE_API_URL = "https://exercisedb.p.rapidapi.com"
     EXERCISE_HEADERS = {
         "x-rapidapi-key": os.environ.get("EXERCISE_API_KEY"),
@@ -164,11 +187,14 @@ def create_app():
         exercise_list = []
         selected = None
 
+        # Handle search queries
         if request.method == "POST":
             query = request.form.get("muscle") or request.form.get("body_part")
             if query:
                 selected = query
                 normalized = query.lower().replace(" ", "-").replace("_", "-")
+
+                # Try multiple API endpoints for best match
                 endpoints = [
                     f"/exercises/name/{normalized}",
                     f"/exercises/bodyPart/{normalized}",
@@ -180,10 +206,12 @@ def create_app():
                     if response.status_code == 200:
                         data = response.json()
                         if isinstance(data, list) and data:
-                            # Just create clickable Google links instead of images
+                            # Add Google search links to each result
                             for ex in data:
                                 search_query = ex.get("name", "").replace(" ", "+")
-                                ex["searchUrl"] = f"https://www.google.com/search?q={search_query}+exercise"
+                                ex["searchUrl"] = (
+                                    f"https://www.google.com/search?q={search_query}+exercise"
+                                )
                             exercise_list = data
                             break
                     else:
@@ -191,7 +219,7 @@ def create_app():
 
         return render_template("exercises.html", exercises=exercise_list, selected=selected)
 
-    # ---------- Save Exercise ---------- #
+    # --------- Save Exercise --------- #
     @app.route("/save_exercise/<exercise_id>", methods=["POST"])
     def save_exercise(exercise_id):
         if "user_id" not in session:
@@ -208,31 +236,42 @@ def create_app():
         )
         db.session.add(ex)
         db.session.commit()
+
         flash("Exercise saved to your plan.", "success")
         return redirect(url_for("exercises"))
 
-    # ---------- My Exercises ---------- #
+    # --------- My Exercises --------- #
     @app.route("/my_exercises")
     def my_exercises():
         if "user_id" not in session:
             return redirect(url_for("login"))
-        saved_exercises = UserExercise.query.filter_by(user_id=session["user_id"]).all()
+
+        saved_exercises = UserExercise.query.filter_by(
+            user_id=session["user_id"]
+        ).all()
+
         return render_template("my_exercises.html", exercises=saved_exercises)
 
-    # ---------- Delete Exercise ---------- #
+    # --------- Delete Exercise --------- #
     @app.route("/delete_exercise/<int:exercise_id>", methods=["POST"])
     def delete_exercise(exercise_id):
         if "user_id" not in session:
             return redirect(url_for("login"))
-        ex = UserExercise.query.filter_by(id=exercise_id, user_id=session["user_id"]).first()
+
+        ex = UserExercise.query.filter_by(
+            id=exercise_id, user_id=session["user_id"]
+        ).first()
+
         if ex:
             db.session.delete(ex)
             db.session.commit()
             flash("Exercise deleted.", "info")
+
         return redirect(url_for("my_exercises"))
 
+    # --------- Health Check Endpoint --------- #
     @app.route("/health")
     def health():
-     return {"status": "ok"}, 200
+        return {"status": "ok"}, 200
 
     return app
