@@ -10,7 +10,7 @@
 # -----------------------------
 app:
   name: shviki-app                                 # Logical name for Flask Deployment
-  image: "alon2810/shvikifitness:0805402"          # Flask Docker image
+  image: "alon2810/shvikifitness:e537699"          # Flask Docker image
   replicas: 1                                       # Default replica count (HPA may override)
   port: 5000                                        # Internal container port
 
