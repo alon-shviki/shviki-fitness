@@ -10,3 +10,7 @@ venv/
 
 # Local environment variables file
 .env
+
+reset_admin.sh
+k8s-check.sh
+k8s-restart.sh

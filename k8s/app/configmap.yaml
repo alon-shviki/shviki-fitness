@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
-  namespace: shviki-fitness
-data:
-  FLASK_ENV: production
-  SQLALCHEMY_DATABASE_URI: mysql+pymysql://shviki_user:shviki_pass@mysql-service:3306/shviki_db
