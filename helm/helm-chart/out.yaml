@@ -1,0 +1,453 @@
+---
+# Source: shviki-fitness/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shviki-fitness-sa
+  namespace: sh
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+---
+# Source: shviki-fitness/templates/app-configmap.yaml
+# Summary: ConfigMap for Flask Application
+# Description:
+# This ConfigMap stores non-sensitive environment variables used by the Flask app.
+# Application settings such as environment mode and debug behavior are defined here.
+# Sensitive values (for example SECRET_KEY) must be placed in a Kubernetes Secret.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shviki-app-config
+
+data:
+  FLASK_ENV: "production"                 # Flask environment mode
+  DEBUG: "false"                          # Debug toggle for runtime behavior
+  APP_NAME: "shviki-app"      # Application reference name
+---
+# Source: shviki-fitness/templates/hpa-rbac.yaml
+# Summary: RBAC for Horizontal Pod Autoscaler (HPA)
+# Description:
+# Defines RBAC permissions required by the HPA to read pod metrics
+# and update the scale subresource of the Flask Deployment.
+# Includes Role and RoleBinding scoped to the application namespace.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hpa-scale-role
+  namespace: sh
+  labels:
+    app.kubernetes.io/name: shviki-app
+    app.kubernetes.io/component: autoscaler
+
+rules:
+  # Allow HPA to view and modify Deployment scale
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update"]
+
+  # Allow HPA to watch pod metrics in the namespace
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "watch"]
+---
+# Source: shviki-fitness/templates/hpa-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hpa-scale-binding
+  namespace: sh
+  labels:
+    app.kubernetes.io/name: shviki-app
+    app.kubernetes.io/component: autoscaler
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hpa-scale-role
+
+subjects:
+  - kind: ServiceAccount
+    name: default                     # ServiceAccount granted HPA permissions
+    namespace: sh
+---
+# Source: shviki-fitness/templates/flask-service.yaml
+# Summary: Flask Application Service
+# Description:
+# Exposes the Flask application running in the Deployment.
+# The service type determines accessibility:
+# - ClusterIP: internal-only access within the cluster
+# - NodePort: exposes the app on each node's IP/port
+# - LoadBalancer: provisions a cloud load balancer (AWS ELB)
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: shviki-fitness-service                  # Service name for the Flask web app
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-attributes: deletion_protection.enabled=false
+
+spec:
+  type: LoadBalancer                 # Service type (NodePort / ClusterIP / LoadBalancer)
+  selector:
+    app: shviki-app                    # Target pods using the app label
+  ports:
+    - port: 80                                     # Exposed service port
+      targetPort: 5000           # Flask container port
+      protocol: TCP
+---
+# Source: shviki-fitness/templates/mysql-service.yaml
+# Summary: MySQL Service Configuration
+# Description:
+# Provides internal network access to the MySQL StatefulSet using a ClusterIP Service.
+# This keeps the database accessible only within the cluster and prevents external exposure.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: shviki-fitness-mysql                   # Internal DNS name for MySQL
+spec:
+  type: ClusterIP                                 # Internal-only service
+  selector:
+    app: mysql                                    # Target pods with label: app=mysql
+  ports:
+    - port: 3306                                  # MySQL service port
+      targetPort: 3306        # MySQL container port
+---
+# Source: shviki-fitness/templates/flask-deployment.yaml
+# Summary: Flask Application Deployment
+# Description:
+# Defines the Kubernetes Deployment for the Flask web application. 
+# Configures replica count, rolling update behavior, resource limits,
+# environment variables, service account, and health probes.
+# Application secrets are loaded from Kubernetes Secrets created by External Secrets.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shviki-app
+spec:
+  replicas: 1      # Desired number of pods
+  selector:
+    matchLabels:
+      app: shviki-app
+
+  # Rolling update strategy for zero-downtime deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow one extra pod during rollout
+      maxUnavailable: 0  # Ensure all pods stay up until new ones are ready
+
+  template:
+    metadata:
+      labels:
+        app: shviki-app
+    spec:
+      terminationGracePeriodSeconds: 30     # Give the app time to finish active requests
+
+      # Service account used for IAM role binding through IRSA
+      serviceAccountName: shviki-fitness-sa
+
+      containers:
+        - name: shviki-app
+          image: "alon2810/shvikifitness:b5a44cd"   # Container image for Flask
+          ports:
+            - containerPort: 5000
+
+          # Resource requests and limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+
+          # Liveness probe checks if Flask application is responding
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 40      # Allow database and Gunicorn startup
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+
+          # Readiness probe controls when the app receives traffic
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 10
+
+          # PreStop lifecycle hook for graceful shutdown
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "echo 'Graceful shutdown...'; sleep 5"]
+
+          env:
+            # Secret key for Flask session encryption
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-app-secret
+                  key: SECRET_KEY
+
+            # MySQL connection environment variables
+            - name: DB_HOST
+              value: "shviki-fitness-mysql"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_DATABASE
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_PASSWORD
+
+            # Exercise API credentials
+            - name: EXERCISE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-app-secret
+                  key: EXERCISE_API_KEY
+
+            - name: EXERCISE_API_HOST
+              value: "exercisedb.p.rapidapi.com"
+---
+# Source: shviki-fitness/templates/flask-hpa.yaml
+# Summary: Horizontal Pod Autoscaler (HPA)
+# Description:
+# Configures autoscaling for the Flask Deployment based on CPU usage.
+# The HPA monitors average CPU utilization and adjusts the number of replicas
+# to maintain efficient performance and resource usage.
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: shviki-app-hpa
+
+spec:
+  # Target workload to scale (Flask Deployment)
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shviki-app
+
+  # Allowed number of pods managed by the HPA
+  minReplicas: 1
+  maxReplicas: 3
+
+  # Scale based on average CPU utilization across all pods
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70       # Scale up if average CPU > 70%
+
+  behavior:
+    scaleDown:
+      # Limit how quickly pods are removed to prevent instability
+      stabilizationWindowSeconds: 60
+---
+# Source: shviki-fitness/templates/mysql-statefulset.yaml
+# Summary: MySQL StatefulSet
+# Description:
+# Deploys MySQL using a StatefulSet to guarantee stable network identity and persistent storage.
+# The database credentials come from a Kubernetes Secret, and data is stored on a PersistentVolumeClaim.
+# All configuration values are sourced from values.yaml for flexibility and reusability.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shviki-fitness-mysql
+
+spec:
+  serviceName: shviki-fitness-mysql             # Headless service for stable DNS
+  replicas: 1                                      # Single MySQL instance
+  selector:
+    matchLabels:
+      app: mysql                                   # Label selector for MySQL pods
+
+  template:
+    metadata:
+      labels:
+        app: mysql                                 # Pod label for service matching
+
+    spec:
+      containers:
+        - name: mysql
+          image: "mysql:8.0"        # MySQL image from values.yaml
+
+          ports:
+            - containerPort: 3306   # Default: 3306
+              name: mysql
+
+          # Environment variables sourced from the MySQL Secret
+          env:
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_DATABASE
+
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_USER
+
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_PASSWORD
+
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shviki-mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+
+          # Resource requests and limits for predictable performance
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          # Mount persistent storage for MySQL data
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql              # MySQL data directory
+
+  # Persistent storage definition for the StatefulSet
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-storage                         # Matches the volumeMount name
+      spec:
+        accessModes: ["ReadWriteOnce"]              # Single-node writable storage
+        storageClassName: "gp3-ebs"
+        resources:
+          requests:
+            storage: "1Gi"
+---
+# Source: shviki-fitness/templates/external-secrets.yaml
+# Summary: External Secrets for MySQL and Flask Application
+# Description:
+# This file defines ExternalSecret resources used to sync sensitive values from AWS Secrets Manager
+# into Kubernetes Secret objects. It creates two secrets:
+# 1. MySQL credentials for the database StatefulSet.
+# 2. Application secrets such as the Flask SECRET_KEY and API keys.
+
+# -------------------------------
+# 1. MySQL ExternalSecret
+# Pulls MySQL credentials from AWS Secrets Manager
+# and writes them into a Kubernetes Secret.
+# -------------------------------
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: shviki-mysql-secret
+  namespace: sh
+spec:
+  secretStoreRef:
+    name: shviki-aws-store
+    kind: SecretStore
+
+  target:
+    name: shviki-mysql-secret      # Target K8s secret: shviki-mysql-secret
+    creationPolicy: Owner
+
+  data:
+    - secretKey: MYSQL_ROOT_PASSWORD
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: MYSQL_ROOT_PASSWORD
+
+    - secretKey: MYSQL_PASSWORD
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: MYSQL_USER_PASSWORD        # AWS key name
+
+    - secretKey: MYSQL_USER
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: MYSQL_USER
+
+    - secretKey: MYSQL_DATABASE
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: MYSQL_DATABASE
+---
+# Source: shviki-fitness/templates/external-secrets.yaml
+# -------------------------------
+# 2. Flask Application ExternalSecret
+# Syncs application secrets such as SECRET_KEY and API keys
+# from AWS Secrets Manager into a Kubernetes Secret.
+# -------------------------------
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: shviki-app-secret
+  namespace: sh
+spec:
+  secretStoreRef:
+    name: shviki-aws-store
+    kind: SecretStore
+
+  target:
+    name: shviki-app-secret      # Target K8s secret: shviki-app-secret
+    creationPolicy: Owner
+
+  data:
+    - secretKey: SECRET_KEY
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: FLASK_SECRET_KEY           # AWS key name
+
+    - secretKey: EXERCISE_API_KEY
+      remoteRef:
+        key: shviki-fitness/prod/app-secrets
+        property: RAPIDAPI_KEY               # AWS key name
+---
+# Source: shviki-fitness/templates/secret-store.yaml
+# Summary: AWS SecretStore Configuration
+# Description:
+# Defines a SecretStore resource used by External Secrets to pull sensitive values
+# from AWS Secrets Manager. Authentication is performed through IRSA using the
+# service account provisioned in Terraform.
+
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: shviki-aws-store
+  namespace: sh
+
+spec:
+  provider:
+    aws:
+      service: SecretsManager                   # Use AWS Secrets Manager as backend
+      region: eu-west-1                         # Region (configurable through GitOps values)
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: shviki-fitness-sa             # ServiceAccount with IAM role via IRSA
