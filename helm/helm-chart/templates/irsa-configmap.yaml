@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shviki-irsa-config
+  namespace: argocd
+  labels:
+    app: shviki-fitness
+    component: irsa-config
+data:
+  # The ARN will be passed via Helm values (set by Terraform or manually in values.yaml)
+  iam_role_arn: "{{ .Values.app.iamRoleArn | default "" }}"
