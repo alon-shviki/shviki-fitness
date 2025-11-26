@@ -17,7 +17,6 @@ import requests
 db = SQLAlchemy()
 
 
-
 # Attempts to connect to the MySQL database multiple times before failing.
 def connect_with_retry(app, retries=10, delay=3):
     """Try to connect to MySQL several times before giving up."""
@@ -164,6 +163,76 @@ def create_app():
 
         users = User.query.all()
         return render_template("dashboard.html", users=users)
+
+    # --------- Admin: Edit User --------- #
+    @app.route("/admin/edit_user/<int:user_id>", methods=["GET", "POST"])
+    def edit_user(user_id):
+        if session.get("role") != "admin":
+            flash("Access denied.", "danger")
+            return redirect(url_for("user_home"))
+
+        user_to_edit = User.query.get_or_404(user_id)
+
+        if request.method == "POST":
+            user_to_edit.first_name = request.form["first_name"]
+            user_to_edit.last_name = request.form["last_name"]
+            user_to_edit.email = request.form["email"]
+            user_to_edit.age = int(request.form["age"])
+            user_to_edit.gender = request.form["gender"]
+            user_to_edit.subscription = request.form["subscription"]
+            user_to_edit.role = request.form["role"]
+            db.session.commit()
+            flash(f"User {user_to_edit.email} has been updated.", "success")
+            return redirect(url_for("dashboard"))
+
+        return render_template("edit_user.html", user=user_to_edit)
+
+    # --------- Admin: Create User --------- #
+    @app.route("/admin/create_user", methods=["GET", "POST"])
+    def create_user():
+        if session.get("role") != "admin":
+            flash("Access denied.", "danger")
+            return redirect(url_for("user_home"))
+
+        if request.method == "POST":
+            if User.query.filter_by(email=request.form["email"]).first():
+                flash("Email already registered", "danger")
+                return redirect(url_for("create_user"))
+            if User.query.filter_by(national_id=request.form["national_id"]).first():
+                flash("National ID already registered", "danger")
+                return redirect(url_for("create_user"))
+
+            user = User(
+                first_name=request.form["first_name"],
+                last_name=request.form["last_name"],
+                national_id=request.form["national_id"],
+                email=request.form["email"],
+                password_hash=generate_password_hash(request.form["password"]),
+                age=int(request.form["age"]),
+                gender=request.form["gender"],
+                subscription=request.form["subscription"],
+                role=request.form["role"],
+            )
+            db.session.add(user)
+            db.session.commit()
+            flash(f"User {user.email} has been created.", "success")
+            return redirect(url_for("dashboard"))
+
+        return render_template("create_user.html")
+
+    # --------- Admin: Delete User --------- #
+    @app.route("/admin/delete_user/<int:user_id>", methods=["POST"])
+    def delete_user(user_id):
+        if session.get("role") != "admin":
+            flash("Access denied.", "danger")
+            return redirect(url_for("user_home"))
+
+        user = User.query.get_or_404(user_id)
+        db.session.delete(user)
+        db.session.commit()
+        flash("User deleted.", "info")
+
+        return redirect(url_for("dashboard"))
 
     # --------- Logout --------- #
     @app.route("/logout")
