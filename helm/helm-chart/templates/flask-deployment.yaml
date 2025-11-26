@@ -30,7 +30,7 @@ spec:
       terminationGracePeriodSeconds: 30     # Give the app time to finish active requests
 
       # Service account used for IAM role binding through IRSA
-      serviceAccountName: shviki-fitness-sa
+      serviceAccountName: shviki-fitness-sa-v2
 
       containers:
         - name: {{ .Values.app.name }}
